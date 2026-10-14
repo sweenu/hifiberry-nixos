@@ -54,9 +54,10 @@ device tree overlay is written to `/boot/firmware/hifiberry.txt` and the system
 reboots once, exactly as HiFiBerryOS does. Then open `http://hifiberry.local/`
 (or the device's IP address) for the setup wizard.
 
-The default login is user `hifiberry`, password `hifiberry`, with sudo and
-SSH enabled. Change it (`passwd`) or set `hifiberry.initialPassword` and your
-SSH keys in your own configuration.
+The user is `hifiberry`. SSH only accepts the key in `hosts/common.nix`
+(replace it with yours if you build your own image); the password
+`hifiberry` works on the local console and for `sudo`, so change it with
+`passwd` after the first login.
 
 ### Trying it in a virtual machine first
 
@@ -67,7 +68,7 @@ nix run --accept-flake-config github:sweenu/hifiberry-nixos#vm
 ```
 
 Then open http://localhost:8080 for the web interface, or
-`ssh -p 2222 hifiberry@localhost` (password `hifiberry`). Stop it with
+`ssh -p 2222 hifiberry@localhost` with the SSH key from `hosts/common.nix`. Stop it with
 `Ctrl-a x`, or `sudo poweroff` inside it. The VM keeps its state in
 `hifiberry.qcow2` in the current directory; delete that file to start over.
 

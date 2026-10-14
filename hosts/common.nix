@@ -7,6 +7,17 @@
   # players with hifiberry.players.<name>.enable = true.
   hifiberry.players.sendspin.enable = true;
 
+  # SSH with this key only: the default password is public (it is in the
+  # published image), so SSH does not accept passwords at all.
+  users.users.hifiberry.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGyqgAJe9NTMN895kztljIIPYIRExKOdDvB6zroete6Z sweenu@carokann"
+  ];
+  services.openssh.settings = {
+    PasswordAuthentication = false;
+    KbdInteractiveAuthentication = false;
+    PermitRootLogin = "no";
+  };
+
   # A Sendspin receiver: leave out what it does not use.
   hifiberry.roomeq.enable = false; # room measurement and correction
   hifiberry.dsp.enable = false; # only for HiFiBerry DSP boards
