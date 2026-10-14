@@ -2,9 +2,10 @@
 #
 # - every push and pull request: evaluate the flake, check formatting, build
 #   all packages for aarch64-linux
-# - pushes to main and manual runs: also build the SD images and keep them as
-#   workflow artifacts
-# - tags (v*): attach the images to a GitHub release
+# - pushes to main and manual runs: also build the SD images
+# - pushes to main where everything built: publish the images on the rolling
+#   `latest` release, ready to flash with Raspberry Pi Imager or balenaEtcher
+# - tags (v*): publish the images on a versioned release
 name: Build
 
 on:
@@ -21,6 +22,11 @@ on:
 
 permissions:
   contents: write
+
+# A newer push supersedes a running build of the same branch.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   NIX_CONFIG: |
@@ -96,17 +102,67 @@ jobs:
             extra-trusted-public-keys = nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
       - name: Build image
         run: |
-          nix build --print-build-logs --out-link "result-${{ matrix.board }}" ".#images.${{ matrix.board }}"
-          ls -la "result-${{ matrix.board }}/sd-image/"
+          nix build --print-build-logs --out-link result ".#images.${{ matrix.board }}"
+          ls -la result/sd-image/
+      - name: Prepare flashable image
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          name="hifiberry-nixos-${{ matrix.board }}.img.xz"
+          # .img.xz is what Raspberry Pi Imager and balenaEtcher flash directly.
+          zstd -dc result/sd-image/*.img.zst | xz -T0 -6 > "out/$name"
+          (cd out && sha256sum "$name" > "$name.sha256")
+          ls -la out/
       - name: Upload image
         uses: actions/upload-artifact@v4
         with:
           name: hifiberry-nixos-${{ matrix.board }}
-          path: result-*/sd-image/*.img.zst
+          path: out/*
           compression-level: 0
           retention-days: 14
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+
+  publish:
+    name: Publish images
+    runs-on: ubuntu-24.04
+    needs: [check, packages, image]
+    # Only when every package and every image built.
+    if: >-
+      success() && github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          files: result-*/sd-image/*.img.zst
+          pattern: hifiberry-nixos-*
+          merge-multiple: true
+          path: images
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ls -la images/
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+            title="HiFiBerryOS on NixOS $tag"
+            flags=(--verify-tag)
+          else
+            # Rolling release: move the `latest` tag to this commit.
+            tag=latest
+            title="Latest build ($(echo "$GITHUB_SHA" | cut -c1-7))"
+            flags=(--target "$GITHUB_SHA" --prerelease)
+            gh release delete latest --cleanup-tag --yes 2>/dev/null || true
+          fi
+          cat > notes.md <<NOTES
+          SD card images built from ${GITHUB_SHA}.
+
+          Download the image for your board, then flash it with
+          [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom")
+          or [balenaEtcher](https://etcher.balena.io/); both take the .img.xz as is.
+          From a shell:
+
+              xzcat hifiberry-nixos-rpi5.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+
+          Log in as hifiberry / hifiberry, or open http://hifiberry.local/.
+          NOTES
+          gh release create "$tag" images/* --title "$title" --notes-file notes.md "${flags[@]}"

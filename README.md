@@ -58,15 +58,23 @@ The default login is user `hifiberry`, password `hifiberry`, with sudo and
 SSH enabled. Change it (`passwd`) or set `hifiberry.initialPassword` and your
 SSH keys in your own configuration.
 
-### Prebuilt images from GitHub Actions
+### Prebuilt images
 
-`.github/workflows/build.yml` builds every package and the SD images natively
-on GitHub's free arm64 runners (`ubuntu-24.04-arm`): on every push to `main`
-the images for the Pi 5 and Pi 4 are attached to the workflow run as
-artifacts, a manual run (`workflow_dispatch`) takes the list of boards as
-input, and a `v*` tag publishes the images as a GitHub release. Builds take a
-while on the first run; afterwards the nixos-raspberrypi cache keeps the kernel
-and firmware out of the build.
+Every push to `main` that builds completely publishes ready-to-flash images
+on the [`latest` release](https://github.com/sweenu/hifiberry-nixos/releases/tag/latest):
+
+- https://github.com/sweenu/hifiberry-nixos/releases/download/latest/hifiberry-nixos-rpi5.img.xz
+- https://github.com/sweenu/hifiberry-nixos/releases/download/latest/hifiberry-nixos-rpi4.img.xz
+
+Flash one with Raspberry Pi Imager ("Use custom") or balenaEtcher, which take
+the `.img.xz` as is, or with
+`xzcat hifiberry-nixos-rpi5.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync`.
+A Raspberry Pi boots from a raw disk image, not an ISO; this is that image.
+
+The images are built natively on GitHub's free arm64 runners by
+`.github/workflows/build.yml`. A manual run (`workflow_dispatch`) takes a list
+of boards (rpi02, rpi3, rpi4, rpi5) and keeps the images as workflow
+artifacts; a `v*` tag publishes them on a versioned release.
 
 ## Using the module in your own NixOS configuration
 
