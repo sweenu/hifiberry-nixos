@@ -58,6 +58,16 @@ The default login is user `hifiberry`, password `hifiberry`, with sudo and
 SSH enabled. Change it (`passwd`) or set `hifiberry.initialPassword` and your
 SSH keys in your own configuration.
 
+### Prebuilt images from GitHub Actions
+
+`.github/workflows/build.yml` builds every package and the SD images natively
+on GitHub's free arm64 runners (`ubuntu-24.04-arm`): on every push to `main`
+the images for the Pi 5 and Pi 4 are attached to the workflow run as
+artifacts, a manual run (`workflow_dispatch`) takes the list of boards as
+input, and a `v*` tag publishes the images as a GitHub release. Builds take a
+while on the first run; afterwards the nixos-raspberrypi cache keeps the kernel
+and firmware out of the build.
+
 ## Using the module in your own NixOS configuration
 
 ```nix
