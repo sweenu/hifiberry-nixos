@@ -76,6 +76,23 @@ The images are built natively on GitHub's free arm64 runners by
 of boards (rpi02, rpi3, rpi4, rpi5) and keeps the images as workflow
 artifacts; a `v*` tag publishes them on a versioned release.
 
+### CI cache
+
+The workflow pushes everything it builds (the HiFiBerry packages, the NixOS
+system closure) to a [Cachix](https://www.cachix.org) binary cache, so later
+runs only rebuild what changed. To turn it on:
+
+1. Create a free public cache on cachix.org (by default the workflow expects
+   it to be called `hifiberry-nixos`; set the repository variable
+   `CACHIX_CACHE` to use another name).
+2. Create an auth token for it and save it as the repository secret
+   `CACHIX_AUTH_TOKEN` (Settings, Secrets and variables, Actions).
+
+Without the secret the cache steps are skipped and every run builds from
+scratch. Once the cache exists, add it to `nixConfig` in `flake.nix`
+(`extra-substituters` and `extra-trusted-public-keys`) so that your own
+machines, and `nixos-rebuild` on the Pi, download the prebuilt packages too.
+
 ## Using the module in your own NixOS configuration
 
 ```nix
