@@ -105,6 +105,27 @@ the `.img.xz` as is, or with
 `xzcat hifiberry-nixos-rpi4.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync`.
 A Raspberry Pi boots from a raw disk image, not an ISO; this is that image.
 
+#### Wi-Fi
+
+Ethernet works with no setup. For Wi-Fi, after flashing, take the card out
+and put it back in: your computer shows its `FIRMWARE` partition. Copy
+`wifi.txt.example` there to `wifi.txt` and fill it in:
+
+```
+ssid=MyNetwork
+password=MyPassword
+```
+
+On its next boot the Pi adds the network to NetworkManager and deletes
+`wifi.txt`, so the password does not stay on the FAT partition. The same works
+later to change networks. To put the file in the image before flashing instead
+(with mtools):
+
+```sh
+xz -dk hifiberry-nixos-rpi4.img.xz
+mcopy -i hifiberry-nixos-rpi4.img@@8M wifi.txt ::wifi.txt
+```
+
 The images are built natively on GitHub's free arm64 runners by
 `.github/workflows/build.yml`. A manual run (`workflow_dispatch`) takes a list
 of boards (rpi02, rpi3, rpi4, rpi5) and keeps the images as workflow

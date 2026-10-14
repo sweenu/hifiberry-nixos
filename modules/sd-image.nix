@@ -22,6 +22,13 @@
     expandOnBoot = true;
     populateFirmwareCommands = lib.mkAfter ''
       printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\n' > ./firmware/hifiberry.txt
+      cat > ./firmware/wifi.txt.example <<'EOF'
+      # To join a Wi-Fi network on the next boot, copy this file to wifi.txt
+      # (in this same folder) and fill in your network. The Pi adds it, then
+      # deletes wifi.txt. Leave password= empty for an open network.
+      ssid=MyNetwork
+      password=MyPassword
+      EOF
     '';
   };
 

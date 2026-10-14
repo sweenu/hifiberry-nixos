@@ -16,6 +16,7 @@
     ./roomeq.nix
     ./players/default.nix
     ./webmcp.nix
+    ./wifi-setup.nix
   ];
 
   meta.maintainers = [ ];
