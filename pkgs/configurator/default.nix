@@ -56,6 +56,11 @@ python3Packages.buildPythonPackage {
       --replace-fail 'self._run_global_cmd(["disable", service_name])' \
                      'self._run_service_cmd(["disable", service_name], service_name)'
 
+    # The software volume control ("Softvol") for cards without a hardware
+    # mixer is created with alsactl, called by its Debian path.
+    substituteInPlace configurator/soundcard.py \
+      --replace-fail '/usr/sbin/alsactl' '${alsa-utils}/bin/alsactl'
+
     substituteInPlace configurator/handlers/system_handler.py \
       --replace-fail "'/usr/sbin/shutdown'" "'/run/current-system/sw/bin/shutdown'" \
       --replace-fail "'/usr/sbin/reboot'" "'/run/current-system/sw/bin/reboot'"

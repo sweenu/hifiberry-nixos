@@ -3,6 +3,7 @@
 {
   lib,
   python3Packages,
+  alsa-utils,
   sources,
 }:
 
@@ -24,6 +25,11 @@ python3Packages.buildPythonApplication {
     flask
     waitress
   ];
+
+  postPatch = ''
+    substituteInPlace hifiberrydsp/alsa/alsasync.py \
+      --replace-fail '/usr/sbin/alsactl' '${alsa-utils}/bin/alsactl'
+  '';
 
   postInstall = ''
     install -Dm755 bin/dspdac-reset bin/mergeparameters bin/optimizer-client bin/spdifclockgen -t $out/bin

@@ -17,6 +17,9 @@
 
   # Nothing to detect: without a HAT, detection would only log failures.
   systemd.services.config-detect.enable = false;
+  # Creates the "Softvol" control from an ALSA state written for the HiFiBerry
+  # card (sndrpihifiberry), which the VM's virtual card cannot take.
+  systemd.services.volume-restore.enable = false;
   # The file the configurator reads and writes in place of config.txt.
   systemd.tmpfiles.rules = [
     "d /boot/firmware 0755 root root -"
