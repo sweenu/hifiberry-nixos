@@ -12,7 +12,10 @@ rustPlatform.buildRustPackage {
   version = "1.0.1";
 
   src = sources.songcompare;
-  cargoLock.lockFile = "${sources.songcompare}/Cargo.lock";
+  # A copy of the source's Cargo.lock: reading it from the fetched source would
+  # need the fetch at evaluation time (import-from-derivation), which
+  # `nix flake check` forbids. Keep it in sync when bumping the source.
+  cargoLock.lockFile = ./Cargo.lock;
 
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ alsa-lib ];

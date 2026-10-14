@@ -18,7 +18,10 @@ let
     version = "0.6.0";
     src = sources.roomeq;
     sourceRoot = "${sources.roomeq.name}/src/rust";
-    cargoLock.lockFile = "${sources.roomeq}/src/rust/Cargo.lock";
+    # A copy of the source's Cargo.lock: reading it from the fetched source would
+    # need the fetch at evaluation time (import-from-derivation), which
+    # `nix flake check` forbids. Keep it in sync when bumping the source.
+    cargoLock.lockFile = ./Cargo.lock;
     doCheck = false;
     meta.license = lib.licenses.mit;
   };

@@ -17,8 +17,10 @@ Component-specific notes:
 
 - **webui**: after bumping, refresh `npmDepsHash` with
   `prefetch-npm-deps package-lock.json` in the hbos-ui checkout.
-- **pipewire-api**: upstream has no `Cargo.lock`; run `cargo generate-lockfile`
-  in the checkout and copy it to `pkgs/pipewire-api/Cargo.lock`.
+- **Rust packages** (audiocontrol, vu-meter, analog-recognition, songcompare,
+  roomeq): copy the source's `Cargo.lock` to `pkgs/<name>/Cargo.lock` after
+  bumping, so evaluation does not need the fetched source. pipewire-api ships
+  none upstream; run `cargo generate-lockfile` in its checkout instead.
 - **sendspin**: `CMakeLists.txt` and `cmake/host.cmake` of sendspin-cpp pin
   the FetchContent dependencies (sendspin-cpp commit, ArduinoJson, micro-flac,
   micro-opus, IXWebSocket); update those entries in `pkgs/sources.nix` together.
