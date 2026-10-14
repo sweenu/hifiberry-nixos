@@ -63,12 +63,15 @@ SSH keys in your own configuration.
 Every push to `main` that builds completely publishes ready-to-flash images
 on the [`latest` release](https://github.com/sweenu/hifiberry-nixos/releases/tag/latest):
 
-- https://github.com/sweenu/hifiberry-nixos/releases/download/latest/hifiberry-nixos-rpi5.img.xz
 - https://github.com/sweenu/hifiberry-nixos/releases/download/latest/hifiberry-nixos-rpi4.img.xz
+
+Only the Raspberry Pi 4 image is built by default. For another board, run the
+workflow manually (Actions, Build, Run workflow) with its name (rpi02, rpi3,
+rpi5) and download the image from the run's artifacts.
 
 Flash one with Raspberry Pi Imager ("Use custom") or balenaEtcher, which take
 the `.img.xz` as is, or with
-`xzcat hifiberry-nixos-rpi5.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync`.
+`xzcat hifiberry-nixos-rpi4.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync`.
 A Raspberry Pi boots from a raw disk image, not an ISO; this is that image.
 
 The images are built natively on GitHub's free arm64 runners by

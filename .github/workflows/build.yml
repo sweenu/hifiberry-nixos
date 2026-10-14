@@ -2,7 +2,7 @@
 #
 # - every push and pull request: evaluate the flake, check formatting, build
 #   all packages for aarch64-linux
-# - pushes to main and manual runs: also build the SD images
+# - pushes to main: also build the Pi 4 SD image; manual runs can pick boards
 # - pushes to main where everything built: publish the images on the rolling
 #   `latest` release, ready to flash with Raspberry Pi Imager or balenaEtcher
 # - tags (v*): publish the images on a versioned release
@@ -17,7 +17,7 @@ on:
     inputs:
       boards:
         description: "Boards to build images for (space separated: rpi02 rpi3 rpi4 rpi5)"
-        default: "rpi5 rpi4"
+        default: "rpi4"
         required: false
 
 permissions:
@@ -125,7 +125,7 @@ jobs:
     steps:
       - id: boards
         run: |
-          boards="${{ github.event.inputs.boards || 'rpi5 rpi4' }}"
+          boards="${{ github.event.inputs.boards || 'rpi4' }}"
           echo "boards=$(printf '%s\n' $boards | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
 
   image:
@@ -234,7 +234,7 @@ jobs:
           or [balenaEtcher](https://etcher.balena.io/); both take the .img.xz as is.
           From a shell:
 
-              xzcat hifiberry-nixos-rpi5.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+              xzcat hifiberry-nixos-rpi4.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 
           Log in as hifiberry / hifiberry, or open http://hifiberry.local/.
           NOTES
