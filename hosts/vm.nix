@@ -20,6 +20,10 @@
   # Creates the "Softvol" control from an ALSA state written for the HiFiBerry
   # card (sndrpihifiberry), which the VM's virtual card cannot take.
   systemd.services.volume-restore.enable = false;
+  # Saves the HiFiBerry card's volume every minute; with no HiFiBerry card it
+  # can only fail.
+  systemd.services.volume-store.enable = false;
+  systemd.timers.volume-store.enable = false;
   # The file the configurator reads and writes in place of config.txt.
   systemd.tmpfiles.rules = [
     "d /boot/firmware 0755 root root -"
