@@ -2,9 +2,14 @@
   description = "HiFiBerryOS on NixOS: every HiFiBerryOS component as a Nix package, NixOS modules, and SD card images for Raspberry Pi";
 
   nixConfig = {
-    extra-substituters = [ "https://nixos-raspberrypi.cachix.org" ];
+    extra-substituters = [
+      "https://nixos-raspberrypi.cachix.org"
+      # Everything CI builds for this repository
+      "https://sweenu.cachix.org"
+    ];
     extra-trusted-public-keys = [
       "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+      "sweenu.cachix.org-1:DvQl16NWBp41k5IlxTODTOrIThyGRj8/ekrXxEheBQ0="
     ];
   };
 

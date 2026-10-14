@@ -44,7 +44,7 @@
         host.port = 8080;
         guest.port = 80;
       }
-      # SSH: ssh -p 2222 hifiberry@localhost (password hifiberry)
+      # SSH: ssh -p 2222 hifiberry@localhost (key from common.nix)
       {
         from = "host";
         host.port = 2222;

@@ -120,12 +120,21 @@ repository gets) and saves it under a key derived from `flake.lock` and
 only the packages whose definition changed are rebuilt. Snapshots unused for a
 week are evicted by GitHub.
 
-Optionally, the same jobs also push to a [Cachix](https://www.cachix.org)
-cache. That is only useful outside CI: with it, the Pi and your own machines
-can download the prebuilt packages when you update the system. To enable it,
-create a free public cache (by default named `hifiberry-nixos`, or set the
-repository variable `CACHIX_CACHE`), save an auth token as the repository
-secret `CACHIX_AUTH_TOKEN`, and add the cache to `nixConfig` in `flake.nix`.
+The same jobs also push everything they build (except the images) to the
+public [Cachix](https://www.cachix.org) cache `sweenu`. That is what lets the
+Pi, and your own machines, download the prebuilt packages when you update the
+system instead of compiling them: the hosts and the flake's `nixConfig` trust
+`sweenu.cachix.org`. Pushing needs a Cachix auth token saved as the repository
+secret `CACHIX_AUTH_TOKEN`; without it the push step is skipped. Set the
+repository variable `CACHIX_CACHE` to push to another cache.
+
+### Updating the Pi
+
+Once CI has built a commit, update the running system with:
+
+```sh
+sudo nixos-rebuild switch --flake github:sweenu/hifiberry-nixos#hifiberry-rpi4
+```
 
 ## Using the module in your own NixOS configuration
 

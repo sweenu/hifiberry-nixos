@@ -38,7 +38,7 @@ env:
   # Optional: also push everything to Cachix when a token is configured, so
   # that machines outside CI (the Pi itself) can download the packages.
   CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
-  CACHIX_CACHE: ${{ vars.CACHIX_CACHE || 'hifiberry-nixos' }}
+  CACHIX_CACHE: ${{ vars.CACHIX_CACHE || 'sweenu' }}
 
 jobs:
   check:

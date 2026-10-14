@@ -31,6 +31,12 @@
   documentation.nixos.enable = lib.mkDefault false;
 
   nix.settings.auto-optimise-store = true;
+  # CI pushes everything it builds here, so updating the Pi downloads the
+  # HiFiBerry packages instead of compiling them on the Pi.
+  nix.settings.substituters = [ "https://sweenu.cachix.org" ];
+  nix.settings.trusted-public-keys = [
+    "sweenu.cachix.org-1:DvQl16NWBp41k5IlxTODTOrIThyGRj8/ekrXxEheBQ0="
+  ];
   nix.gc = {
     automatic = true;
     options = "--delete-older-than 14d";
