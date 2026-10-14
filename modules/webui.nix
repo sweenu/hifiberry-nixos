@@ -10,8 +10,16 @@ let
   cfg = config.hifiberry;
   hb = cfg.packages;
 
+  # HiFiBerry's snippet, pointed at the store path. Its security headers sit at
+  # server level, but a nested `add_header` (Cache-Control in each location)
+  # drops every inherited one, so they are repeated in each location. NixOS
+  # rejects the unmodified snippet for that (gixy, add_header_redefinition).
   webuiNginx = pkgs.runCommand "hifiberry-webui.nginx" { } ''
-    sed 's|/usr/share/hifiberry/webui|${hb.webui}/share/hifiberry/webui|' \
+    sed -e 's|/usr/share/hifiberry/webui|${hb.webui}/share/hifiberry/webui|' \
+        -e '/^ \{4\}add_header Cache-Control/a\
+        add_header X-Frame-Options "SAMEORIGIN" always;\
+        add_header X-Content-Type-Options "nosniff" always;\
+        add_header X-XSS-Protection "1; mode=block" always;' \
       ${hb.webui}/share/hifiberry-webui/nginx/hifiberry-webui.nginx > $out
   '';
   apiSnippets = pkgs.concatText "hifiberry-api.nginx" cfg.internal.nginxSnippets;
