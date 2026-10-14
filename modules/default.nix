@@ -15,8 +15,6 @@
     ./vu-meter.nix
     ./roomeq.nix
     ./players/default.nix
-    ./kiosk.nix
-    ./display.nix
     ./webmcp.nix
   ];
 

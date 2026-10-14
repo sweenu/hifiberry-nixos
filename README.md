@@ -5,9 +5,10 @@ component of the Debian-based HiFiBerryOS packaged with Nix, NixOS modules that
 wire them together the way HiFiBerryOS does, and ready-to-flash SD card images
 for the Raspberry Pi Zero 2, 3, 4 and 5 (64-bit).
 
-The result is the same system HiFiBerryOS gives you after `install-all` and
-`apt install hbos-full` plus the Music Assistant (Sendspin) player, and with the
-other players (Spotify Connect, AirPlay, Squeezebox) available out of the box:
+The result is the system HiFiBerryOS gives you after `install-all` and
+`apt install hbos-full`, with the Music Assistant (Sendspin) player and
+Bluetooth audio enabled by default and the other players (MPD, Spotify
+Connect, AirPlay, Squeezebox, Roon, …) packaged and available as options:
 
 | Component | HiFiBerryOS package | Here |
 |---|---|---|
@@ -30,7 +31,7 @@ other players (Spotify Connect, AirPlay, Squeezebox) available out of the box:
 | AirPlay 1 and 2 (shairport-sync, nqptp) | `hifiberry-shairport` | `pkgs/shairport` |
 | Squeezebox / LMS (squeezelite) | `hifiberry-squeezelite` | `pkgs/squeezelite` |
 | Analog input with track recognition, AES67, USB audio gadget, analog pass-through | `hifiberry-analog-recognition`, `hifiberry-aes67`, `hifiberry-usbaudio`, `hifiberry-analoginput` | `pkgs/…`, off by default |
-| MCP server, SDL now-playing display, kiosk mode | `hifiberry-acr-webmcp`, `nowplaying-sdl`, `kiosk-mode.sh` | `modules/webmcp.nix`, `modules/display.nix`, `modules/kiosk.nix` |
+| MCP server, SDL now-playing display | `hifiberry-acr-webmcp`, `nowplaying-sdl` | `modules/webmcp.nix`, `pkgs/nowplaying-sdl` (package only) |
 
 ## Building an SD card image
 
@@ -77,8 +78,7 @@ SSH keys in your own configuration.
             hifiberry.enable = true;
             hifiberry.soundcard = "hifiberry-dacplus";       # skip the detection reboot
             hifiberry.audiocontrol.secretsFile = ./secrets.txt;  # optional, see below
-            hifiberry.players.squeezelite.enable = false;
-            hifiberry.kiosk.enable = true;                   # web UI on an attached screen
+            hifiberry.players.mpd.enable = true;             # Sendspin + Bluetooth are on by default
             networking.hostName = "livingroom";
             users.users.hifiberry.openssh.authorizedKeys.keys = [ "ssh-ed25519 …" ];
             system.stateVersion = "26.05";
@@ -97,11 +97,9 @@ The main options (`nix eval` or the files in `modules/` for the full list):
 | `hifiberry.user` / `uid` | `hifiberry` / 1000 | The user whose systemd session runs PipeWire and the players (`/etc/hifiberry.user`). |
 | `hifiberry.soundcard` | `null` | Device tree overlay of the HAT, e.g. `hifiberry-dacplus`. `null` detects at boot. |
 | `hifiberry.audiocontrol.secretsFile` | `null` | `secrets.txt` with HiFiBerry's API credentials (Last.fm, TheAudioDB, Spotify proxy). |
-| `hifiberry.players.{mpd,librespot,shairport,squeezelite,sendspin,raat}.enable` | `true` | Install a player. `.autoStart` enables it on the first boot; the web UI can toggle it afterwards. |
-| `hifiberry.players.{analogRecognition,aes67,usbaudio,analoginput}.enable` | `false` | Players for specific hardware. |
+| `hifiberry.players.sendspin.enable` | `true` | Music Assistant (Sendspin). `.autoStart` enables the service on the first boot; the web UI can toggle it afterwards. |
+| `hifiberry.players.{mpd,librespot,shairport,squeezelite,raat,analogRecognition,aes67,usbaudio,analoginput}.enable` | `false` | The other players, each packaged and ready to enable. |
 | `hifiberry.{bluetooth,dsp,roomeq,vuMeter,bleProvisioning,openssh}.enable` | `true` | Optional services. |
-| `hifiberry.kiosk.enable`, `.url`, `.scale` | `false` | cage + cog showing the web UI on the local display. |
-| `hifiberry.display.nowplaying.enable` | `false` | The SDL2 now-playing display. |
 | `hifiberry.webmcp.enable` | `false` | MCP server for AudioControl. |
 
 All packages are also available as `packages.<system>.<name>` and through
@@ -114,8 +112,9 @@ not translate one to one to a declarative NixOS system. See
 [docs/differences.md](docs/differences.md) for the details. In short:
 
 - **Extensions.** HiFiBerryOS installs extra players from its apt repository
-  through the web interface. Here players are NixOS options; the extensions
-  page shows what is installed but cannot install anything.
+  through the web interface. Here players are NixOS options
+  (`hifiberry.players.*`); the extensions page shows what is installed but
+  cannot install anything.
 - **config.txt.** Generated from the configuration on every rebuild. The lines
   HiFiBerryOS writes at runtime (the detected card's overlay) live in
   `/boot/firmware/hifiberry.txt`, which `config.txt` includes, so they survive
@@ -131,7 +130,7 @@ not translate one to one to a declarative NixOS system. See
 - **Roon (RAAT).** The RAAT SDK is proprietary and HiFiBerry's `raat`
   repository is private, so `pkgs/raat` repackages the binaries from
   HiFiBerry's Debian repository (aarch64 only, `allowUnfreePredicate` is set
-  for it). Disable it with `hifiberry.players.raat.enable = false`.
+  for it). It is off unless `hifiberry.players.raat.enable = true`.
 - **Hostname.** The static hostname is set in the configuration
   (`networking.hostName`); the web interface can still set the pretty name.
 - **No firewall**, like Raspberry Pi OS. Set `networking.firewall.enable = true`

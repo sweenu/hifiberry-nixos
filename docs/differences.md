@@ -101,10 +101,11 @@ the wrapper scripts from hifiberry-os. It only exists for aarch64 and is marked
 unfree; `nixpkgs.config.allowUnfreePredicate` is set for it when the player is
 enabled.
 
-## Kiosk mode
+## Kiosk mode and local displays
 
-`kiosk-mode.sh` configures getty autologin, cage and cog on tty1.
-`hifiberry.kiosk.enable` does the same with NixOS' `services.cage`.
+Not provided; the system is meant to be used through the web interface. The
+`nowplaying-sdl` package is available for anyone who wants to wire up a
+display themselves.
 
 ## Tailscale and other additions
 

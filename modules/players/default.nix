@@ -13,7 +13,7 @@ let
     {
       name,
       description,
-      default ? true,
+      default ? false,
     }:
     {
       enable = lib.mkEnableOption description // {
@@ -65,6 +65,7 @@ in
     sendspin = playerOpts {
       name = "sendspin";
       description = "Music Assistant (Sendspin)";
+      default = true;
     };
     raat = playerOpts {
       name = "raat";
@@ -73,22 +74,18 @@ in
     analogRecognition = playerOpts {
       name = "analogRecognition";
       description = "analog input with track recognition (songrec)";
-      default = false;
     };
     aes67 = playerOpts {
       name = "aes67";
       description = "AES67 receiver";
-      default = false;
     };
     usbaudio = playerOpts {
       name = "usbaudio";
       description = "USB audio gadget input";
-      default = false;
     };
     analoginput = playerOpts {
       name = "analoginput";
       description = "analog input pass-through";
-      default = false;
     };
   };
 }

@@ -3,7 +3,8 @@
 {
   hifiberry.enable = true;
 
-  # HiFiBerryOS defaults: every player available, Music Assistant included.
+  # Music Assistant (Sendspin) and Bluetooth are on by default; enable other
+  # players with hifiberry.players.<name>.enable = true.
   hifiberry.players.sendspin.enable = true;
 
   time.timeZone = lib.mkDefault "UTC";
