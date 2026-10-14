@@ -17,6 +17,11 @@
 
   # Nothing to detect: without a HAT, detection would only log failures.
   systemd.services.config-detect.enable = false;
+  # The file the configurator reads and writes in place of config.txt.
+  systemd.tmpfiles.rules = [
+    "d /boot/firmware 0755 root root -"
+    "f /boot/firmware/hifiberry.txt 0644 root root -"
+  ];
   hifiberry.bluetooth.enable = false;
   hifiberry.bleProvisioning.enable = false;
 

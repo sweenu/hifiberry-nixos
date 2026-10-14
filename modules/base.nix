@@ -29,6 +29,10 @@ in
     users.users.${cfg.user} = {
       isNormalUser = true;
       uid = cfg.uid;
+      # A primary group with the same number as the user, as on Raspberry Pi
+      # OS: the configurator runs `systemd-run --uid N --gid N` to manage the
+      # player's services and fails if group N does not exist.
+      group = cfg.user;
       description = "HiFiBerry player user";
       linger = true;
       initialPassword = lib.mkIf (cfg.initialPassword != null) cfg.initialPassword;
@@ -48,6 +52,7 @@ in
       ];
     };
     users.groups = {
+      ${cfg.user}.gid = cfg.uid;
       gpio = { };
       i2c = { };
       spi = { };
@@ -92,9 +97,9 @@ in
         for svc in ${lib.escapeShellArgs cfg.internal.defaultEnabledUserServices}; do
           marker="/var/lib/hifiberry/player-defaults/$svc"
           [ -e "$marker" ] && continue
-          install -d -o ${cfg.user} -g users "$home/.config" "$home/.config/systemd" "$home/.config/systemd/user" "$wants"
+          install -d -o ${cfg.user} -g ${cfg.user} "$home/.config" "$home/.config/systemd" "$home/.config/systemd/user" "$wants"
           ln -sfn "/etc/systemd/user/$svc.service" "$wants/$svc.service"
-          chown -h ${cfg.user}:users "$wants/$svc.service"
+          chown -h ${cfg.user}:${cfg.user} "$wants/$svc.service"
           touch "$marker"
         done
       '';
