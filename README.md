@@ -58,6 +58,30 @@ The default login is user `hifiberry`, password `hifiberry`, with sudo and
 SSH enabled. Change it (`passwd`) or set `hifiberry.initialPassword` and your
 SSH keys in your own configuration.
 
+### Trying it in a virtual machine first
+
+On a Linux computer with Nix (flakes enabled), the same system runs in QEMU:
+
+```sh
+nix run --accept-flake-config github:sweenu/hifiberry-nixos#vm
+```
+
+Then open http://localhost:8080 for the web interface, or
+`ssh -p 2222 hifiberry@localhost` (password `hifiberry`). Stop it with
+`Ctrl-a x`, or `sudo poweroff` inside it. The VM keeps its state in
+`hifiberry.qcow2` in the current directory; delete that file to start over.
+
+Everything runs as on the Pi: PipeWire, AudioControl, the configuration server,
+nginx with the web interface and the auth gateway, and the players. What needs
+the Pi's hardware is absent: there is no HiFiBerry card (the VM has a virtual
+sound card whose output goes nowhere, and the players that require a detected
+HiFiBerry card do not start), no Bluetooth and no boot firmware. It is a way to
+explore the interface and the services, not to listen to music.
+
+The VM matches your computer's architecture (`x86_64-linux` or
+`aarch64-linux`) and uses KVM when available. On macOS it needs a Linux
+builder, such as the one nix-darwin provides.
+
 ### Prebuilt images
 
 Every push to `main` that builds completely publishes ready-to-flash images

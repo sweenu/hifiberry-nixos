@@ -59,6 +59,19 @@
             ./hosts/${board}.nix
           ];
         };
+
+      # The same system as a QEMU virtual machine, for trying it on a computer.
+      mkVm =
+        system:
+        nixpkgs.lib.nixosSystem {
+          specialArgs.hifiberry-nixos = self;
+          modules = [
+            self.nixosModules.default
+            ./hosts/vm.nix
+            { nixpkgs.hostPlatform = system; }
+          ];
+        };
+      vmName = system: "hifiberry-vm-${lib.head (lib.splitString "-" system)}";
     in
     {
       nixosModules = {
@@ -101,9 +114,20 @@
         ) boards
       );
 
-      nixosConfigurations = lib.listToAttrs (
-        map (b: lib.nameValuePair "hifiberry-${b}" (mkHost b)) boards
-      );
+      nixosConfigurations =
+        lib.listToAttrs (map (b: lib.nameValuePair "hifiberry-${b}" (mkHost b)) boards)
+        // lib.listToAttrs (map (system: lib.nameValuePair (vmName system) (mkVm system)) systems);
+
+      # nix run .#vm: boot the system in QEMU, web interface on http://localhost:8080
+      apps = forAllSystems (system: {
+        vm = {
+          type = "app";
+          program = "${
+            self.nixosConfigurations.${vmName system}.config.system.build.vm
+          }/bin/run-hifiberry-vm";
+          meta.description = "Run HiFiBerryOS in a QEMU virtual machine (web interface on http://localhost:8080)";
+        };
+      });
 
       checks = forAllSystems (
         system:

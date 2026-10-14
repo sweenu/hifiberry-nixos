@@ -5,69 +5,76 @@
 # `dtoverlay=` line into config.txt at boot. On NixOS config.txt is generated
 # from the configuration, so those runtime lines go to a separate file,
 # /boot/firmware/hifiberry.txt, which config.txt includes.
+#
+# Only applies on a Raspberry Pi, i.e. when nixos-raspberrypi's modules are
+# imported; elsewhere (the test VM) there is no boot firmware to configure.
 {
   config,
+  options,
   lib,
   pkgs,
   ...
 }:
 let
   cfg = config.hifiberry;
+  isRaspberryPi = options.hardware ? raspberry-pi;
 in
 {
-  config = lib.mkIf cfg.enable {
-    hardware.raspberry-pi.config.all = {
-      base-dt-params = {
-        audio = {
-          enable = true;
-          value = lib.mkForce "off";
+  config = lib.mkIf cfg.enable (
+    lib.optionalAttrs isRaspberryPi {
+      hardware.raspberry-pi.config.all = {
+        base-dt-params = {
+          audio = {
+            enable = true;
+            value = lib.mkForce "off";
+          };
+          i2c_arm = {
+            enable = true;
+            value = "on";
+          };
+          spi = {
+            enable = true;
+            value = "on";
+          };
         };
-        i2c_arm = {
+        dt-overlays.vc4-kms-v3d = {
           enable = true;
-          value = "on";
-        };
-        spi = {
-          enable = true;
-          value = "on";
+          params.noaudio.enable = true;
         };
       };
-      dt-overlays.vc4-kms-v3d = {
-        enable = true;
-        params.noaudio.enable = true;
+
+      hardware.raspberry-pi.extra-config = lib.mkAfter (
+        ''
+          [all]
+        ''
+        + lib.optionalString (cfg.soundcard != null) ''
+          dtoverlay=${cfg.soundcard}
+        ''
+        + ''
+          # HiFiBerryOS runtime sound card configuration (config-detect, config-configtxt)
+          include hifiberry.txt
+        ''
+      );
+
+      # Make sure the included file exists so the firmware has nothing to complain
+      # about on the first boot.
+      systemd.services.hifiberry-firmware-config = {
+        description = "Create /boot/firmware/hifiberry.txt";
+        wantedBy = [ "multi-user.target" ];
+        before = [ "config-detect.service" ];
+        unitConfig.RequiresMountsFor = "/boot/firmware";
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          if [ ! -e /boot/firmware/hifiberry.txt ]; then
+            printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\n' > /boot/firmware/hifiberry.txt
+          fi
+        '';
       };
-    };
 
-    hardware.raspberry-pi.extra-config = lib.mkAfter (
-      ''
-        [all]
-      ''
-      + lib.optionalString (cfg.soundcard != null) ''
-        dtoverlay=${cfg.soundcard}
-      ''
-      + ''
-        # HiFiBerryOS runtime sound card configuration (config-detect, config-configtxt)
-        include hifiberry.txt
-      ''
-    );
-
-    # Make sure the included file exists so the firmware has nothing to complain
-    # about on the first boot.
-    systemd.services.hifiberry-firmware-config = {
-      description = "Create /boot/firmware/hifiberry.txt";
-      wantedBy = [ "multi-user.target" ];
-      before = [ "config-detect.service" ];
-      unitConfig.RequiresMountsFor = "/boot/firmware";
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-      };
-      script = ''
-        if [ ! -e /boot/firmware/hifiberry.txt ]; then
-          printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\n' > /boot/firmware/hifiberry.txt
-        fi
-      '';
-    };
-
-    environment.systemPackages = [ pkgs.raspberrypi-eeprom ];
-  };
+      environment.systemPackages = [ pkgs.raspberrypi-eeprom ];
+    }
+  );
 }

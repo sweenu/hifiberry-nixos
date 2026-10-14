@@ -26,7 +26,6 @@ let
     pkgs.nettools
     pkgs.pipewire
     pkgs.wireplumber
-    pkgs.raspberrypi-utils
     pkgs.raspberrypi-eeprom
     pkgs.libgpiod
     pkgs.bash
@@ -36,7 +35,9 @@ let
     pkgs.procps
     "/run/current-system/sw"
     "/run/wrappers"
-  ];
+  ]
+  # vcgencmd & co., from nixos-raspberrypi's overlay (absent in the test VM)
+  ++ lib.optional (pkgs ? raspberrypi-utils) pkgs.raspberrypi-utils;
 
   detectArgs = if cfg.soundcard == null then "--store --reboot" else "";
 in
