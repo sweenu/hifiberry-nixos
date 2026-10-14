@@ -69,14 +69,6 @@ jobs:
           extra_nix_config: |
             extra-substituters = https://nixos-raspberrypi.cachix.org file://${{ runner.temp }}/nix-cache?trusted=1&priority=10
             extra-trusted-public-keys = nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
-      - name: Use and fill Cachix
-        if: env.CACHIX_AUTH_TOKEN != ''
-        uses: cachix/cachix-action@v17
-        with:
-          name: ${{ env.CACHIX_CACHE }}
-          authToken: ${{ env.CACHIX_AUTH_TOKEN }}
-          # The SD images are published as release assets, not cached.
-          pushFilter: '\.img\.zst$'
       - name: Restore package cache
         id: nix-cache
         uses: actions/cache/restore@v4
@@ -90,6 +82,17 @@ jobs:
           mkdir -p "$cache"
           [ -f "$cache/nix-cache-info" ] || printf 'StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 10\n' > "$cache/nix-cache-info"
           du -sh "$cache"
+      # After the package cache is in place: Cachix runs Nix, and the first
+      # Nix command creates a missing file:// cache directory as root, which
+      # the restore and the snapshot can then not write to.
+      - name: Use and fill Cachix
+        if: env.CACHIX_AUTH_TOKEN != ''
+        uses: cachix/cachix-action@v17
+        with:
+          name: ${{ env.CACHIX_CACHE }}
+          authToken: ${{ env.CACHIX_AUTH_TOKEN }}
+          # The SD images are published as release assets, not cached.
+          pushFilter: '\.img\.zst$'
       - name: Build every package
         run: |
           set -euo pipefail
@@ -106,7 +109,8 @@ jobs:
           new="$RUNNER_TEMP/nix-cache.new"
           rm -rf "$new"
           nix copy --to "file://$new?compression=zstd&parallel-compression=true" $(cat "$RUNNER_TEMP/targets")
-          rm -rf "$RUNNER_TEMP/nix-cache"
+          # The Nix daemon (root) may have added directories to the old one.
+          sudo rm -rf "$RUNNER_TEMP/nix-cache"
           mv "$new" "$RUNNER_TEMP/nix-cache"
           du -sh "$RUNNER_TEMP/nix-cache"
       - name: Save package cache
@@ -152,14 +156,6 @@ jobs:
           extra_nix_config: |
             extra-substituters = https://nixos-raspberrypi.cachix.org file://${{ runner.temp }}/nix-cache?trusted=1&priority=10
             extra-trusted-public-keys = nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
-      - name: Use and fill Cachix
-        if: env.CACHIX_AUTH_TOKEN != ''
-        uses: cachix/cachix-action@v17
-        with:
-          name: ${{ env.CACHIX_CACHE }}
-          authToken: ${{ env.CACHIX_AUTH_TOKEN }}
-          # The SD images are published as release assets, not cached.
-          pushFilter: '\.img\.zst$'
       - name: Restore package cache
         id: nix-cache
         uses: actions/cache/restore@v4
@@ -173,6 +169,17 @@ jobs:
           mkdir -p "$cache"
           [ -f "$cache/nix-cache-info" ] || printf 'StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 10\n' > "$cache/nix-cache-info"
           du -sh "$cache"
+      # After the package cache is in place: Cachix runs Nix, and the first
+      # Nix command creates a missing file:// cache directory as root, which
+      # the restore and the snapshot can then not write to.
+      - name: Use and fill Cachix
+        if: env.CACHIX_AUTH_TOKEN != ''
+        uses: cachix/cachix-action@v17
+        with:
+          name: ${{ env.CACHIX_CACHE }}
+          authToken: ${{ env.CACHIX_AUTH_TOKEN }}
+          # The SD images are published as release assets, not cached.
+          pushFilter: '\.img\.zst$'
       - name: Build image
         run: |
           nix build --print-build-logs --out-link result ".#images.${{ matrix.board }}"
