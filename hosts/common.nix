@@ -7,6 +7,11 @@
   # players with hifiberry.players.<name>.enable = true.
   hifiberry.players.sendspin.enable = true;
 
+  # A Sendspin receiver: leave out what it does not use.
+  hifiberry.roomeq.enable = false; # room measurement and correction
+  hifiberry.dsp.enable = false; # only for HiFiBerry DSP boards
+  hifiberry.bleProvisioning.enable = false; # Wi-Fi setup over Bluetooth LE
+
   time.timeZone = lib.mkDefault "UTC";
   i18n.defaultLocale = lib.mkDefault "en_US.UTF-8";
 

@@ -8,5 +8,10 @@
   ];
 
   networking.hostName = "hifiberry";
+
+  # HiFiBerry DAC+ / Amp2. Declaring the card puts its overlay in config.txt,
+  # so the first boot needs no detection and no reboot. This is the overlay
+  # hifiberry-configurator picks for this card ("DAC+/Amp2").
+  hifiberry.soundcard = "hifiberry-dacplus-std";
   system.nixos.tags = [ "raspberry-pi-4" ];
 }

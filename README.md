@@ -89,6 +89,12 @@ on the [`latest` release](https://github.com/sweenu/hifiberry-nixos/releases/tag
 
 - https://github.com/sweenu/hifiberry-nixos/releases/download/latest/hifiberry-nixos-rpi4.img.xz
 
+The published image is set up for a HiFiBerry DAC+ / Amp2 used as a Music
+Assistant (Sendspin) receiver (`hosts/rpi4.nix`, `hosts/common.nix`): its
+overlay is in `config.txt`, and RoomEQ, the DSP toolkit and Wi-Fi setup over
+Bluetooth are turned off. For another card, change `hifiberry.soundcard`, or
+set it to `null` to detect the card at boot like HiFiBerryOS does.
+
 Only the Raspberry Pi 4 image is built by default. For another board, run the
 workflow manually (Actions, Build, Run workflow) with its name (rpi02, rpi3,
 rpi5) and download the image from the run's artifacts.
