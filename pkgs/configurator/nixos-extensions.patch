@@ -1,0 +1,61 @@
+--- a/configurator/extensions/catalog.py	2026-10-14 10:28:04.576119305 +0000
++++ b/configurator/extensions/catalog.py	2026-10-14 10:28:04.618415863 +0000
+@@ -159,34 +159,33 @@
+ 
+ 
+ def apt_package_source() -> List[PackageInfo]:
+-    """Read the real apt cache. Imported lazily: python3-apt is absent in the
+-    deb build chroot and in unit tests."""
+-    import apt
++    """NixOS: there is no apt. Extensions are enabled declaratively in the
++    system configuration (hifiberry.players.*), and the NixOS module writes the
++    list of what is installed to /etc/hifiberry/nixos-extensions.json so the
++    web interface can still show it. Installing from the UI is not possible."""
++    import json
++    import os
+ 
+-    cache = apt.Cache()
++    path = "/etc/hifiberry/nixos-extensions.json"
++    if not os.path.exists(path):
++        return []
++    try:
++        with open(path) as f:
++            entries = json.load(f)
++    except Exception as e:
++        logger.warning(f"Could not read {path}: {e}")
++        return []
+     packages = []
+-    for pkg in cache:
+-        candidate = pkg.candidate
+-        if candidate is None:
+-            continue
++    for entry in entries:
+         try:
+-            # Cheap pre-filter before converting the whole cache to dicts: apt's
+-            # Record.get is case-insensitive, and we accept both the stripped and
+-            # XB- prefixed marker names (see record_field).
+-            raw = candidate.record
+-            marker = raw.get(MARKER_FIELD) or raw.get("XB-" + MARKER_FIELD)
+-            if str(marker or "").strip().lower() != "yes":
+-                continue
+-            record = dict(raw)
+-        except Exception as e:  # a malformed record must not kill the catalog
+-            logger.debug(f"Skipping {pkg.name}: unreadable record: {e}")
+-            continue
+-        packages.append(PackageInfo(
+-            name=pkg.name,
+-            record=record,
+-            candidate_version=candidate.version,
+-            installed_version=pkg.installed.version if pkg.installed else None,
+-        ))
++            packages.append(PackageInfo(
++                name=entry["name"],
++                record=dict(entry.get("record", {})),
++                candidate_version=entry.get("version", "0"),
++                installed_version=entry.get("version", "0") if entry.get("installed", True) else None,
++            ))
++        except Exception as e:
++            logger.debug(f"Skipping malformed extension entry {entry!r}: {e}")
+     return packages
+ 
+ 
