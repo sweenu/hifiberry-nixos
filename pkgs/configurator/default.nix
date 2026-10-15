@@ -32,6 +32,8 @@ python3Packages.buildPythonPackage {
     argcomplete
     bless
     requests
+    # I2C device scan (/api/v1/i2c/devices); not declared upstream
+    smbus2
   ];
 
   patches = [ ./nixos-extensions.patch ];
