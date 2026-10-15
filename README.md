@@ -1,14 +1,53 @@
 # hifiberry-nixos
 
-[HiFiBerryOS](https://github.com/hifiberry/hifiberry-os) on NixOS: every
-component of the Debian-based HiFiBerryOS packaged with Nix, NixOS modules that
-wire them together the way HiFiBerryOS does, and ready-to-flash SD card images
-for the Raspberry Pi Zero 2, 3, 4 and 5 (64-bit).
+Turn a Raspberry Pi with a [HiFiBerry](https://www.hifiberry.com) sound card
+into a network music player, declared in your NixOS configuration.
 
-The result is the system HiFiBerryOS gives you after `install-all` and
-`apt install hbos-full`, with the Music Assistant (Sendspin) player and
-Bluetooth audio enabled by default and the other players (MPD, Spotify
-Connect, AirPlay, Squeezebox, Roon, …) packaged and available as options:
+This is [HiFiBerryOS](https://github.com/hifiberry/hifiberry-os) on NixOS:
+every component of the Debian-based HiFiBerryOS packaged with Nix, and a NixOS
+module that wires them together the way HiFiBerryOS does. You get its web
+interface, its players and its sound card handling, with your configuration in
+a flake, atomic updates and rollbacks.
+
+> [!WARNING]
+> **This project is vibe-coded.** It was written largely by an AI coding
+> assistant, under review, and has not been audited. It is in daily use as its
+> author's Music Assistant speaker (a Raspberry Pi 4 with a DAC+), which is the
+> setup that is tested on real hardware; everything else is built and
+> evaluated in CI but less exercised. Issues and pull requests are welcome.
+
+## Contents
+
+- [What you get](#what-you-get)
+- [Getting started](#getting-started)
+- [Building and flashing the SD card image](#building-and-flashing-the-sd-card-image)
+- [First boot](#first-boot)
+- [Configuration](#configuration)
+- [Updating a device](#updating-a-device)
+- [Binary cache](#binary-cache)
+- [Trying it in a virtual machine](#trying-it-in-a-virtual-machine)
+- [Reference](#reference)
+- [Development](#development)
+- [Licenses](#licenses)
+
+## What you get
+
+- **Boards:** Raspberry Pi Zero 2, 3, 4 and 5 (64-bit), with the Raspberry Pi
+  kernel, which carries the HiFiBerry drivers and device tree overlays
+  (through [nixos-raspberrypi](https://github.com/nvmd/nixos-raspberrypi)).
+- **Every HiFiBerry card** HiFiBerryOS supports, detected on the first boot or
+  declared with `hifiberry.soundcard`.
+- **Players:** Music Assistant (Sendspin) and Bluetooth audio on by default;
+  AirPlay 1 and 2, Spotify Connect, Squeezebox, MPD, Roon Ready and others one
+  option away.
+- **HiFiBerryOS' web interface** at `http://<name>.local/`, with its setup
+  wizard, settings, volume, EQ and system information, and its password
+  protection.
+- **Appliance conveniences:** Wi-Fi from a `wifi.txt` on the SD card, renaming
+  from the web interface, store garbage collection, prebuilt packages.
+
+Everything HiFiBerryOS installs with `install-all` and `apt install
+hbos-full` is packaged:
 
 | Component | HiFiBerryOS package | Here |
 |---|---|---|
@@ -33,255 +72,335 @@ Connect, AirPlay, Squeezebox, Roon, …) packaged and available as options:
 | Analog input with track recognition, AES67, USB audio gadget, analog pass-through | `hifiberry-analog-recognition`, `hifiberry-aes67`, `hifiberry-usbaudio`, `hifiberry-analoginput` | `pkgs/…`, off by default |
 | MCP server, SDL now-playing display | `hifiberry-acr-webmcp`, `nowplaying-sdl` | `modules/webmcp.nix`, `pkgs/nowplaying-sdl` (package only) |
 
-## Building an SD card image
+## Getting started
 
-You need Nix with flakes on an `aarch64-linux` machine, or an x86_64 machine
-with `boot.binfmt.emulatedSystems = [ "aarch64-linux" ]` (slow) or a remote
-aarch64 builder. The flake's `nixConfig` adds the nixos-raspberrypi binary cache
-so the kernel and firmware need not be rebuilt; pass `--accept-flake-config`.
+### A new flake, from the template
 
 ```sh
-nix build --accept-flake-config .#images.rpi5     # or rpi4, rpi3, rpi02
-ls result/sd-image/
+mkdir living-room && cd living-room
+nix flake init -t github:sweenu/hifiberry-nixos
 ```
 
-Write the `.img.zst` to a card (`zstdcat result/sd-image/*.img.zst | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync`,
-or Raspberry Pi Imager), put it in the Pi with a HiFiBerry HAT, connect
-Ethernet and power it on.
+This creates:
 
-On the first boot the card is detected over its HAT EEPROM or I2C, the matching
-device tree overlay is written to `/boot/firmware/hifiberry.txt` and the system
-reboots once, exactly as HiFiBerryOS does. Then open `http://hifiberry.local/`
-(or the device's IP address) for the setup wizard.
+- `flake.nix`, which defines the system with `hifiberry-nixos.lib.nixosSystem`.
+  Set your board there: `rpi02`, `rpi3`, `rpi4` or `rpi5`.
+- `configuration.nix`, which enables HiFiBerryOS and lists the common options,
+  commented out.
 
-The user is `hifiberry`. SSH only accepts the key in `hosts/common.nix`
-(replace it with yours if you build your own image); the password
-`hifiberry` works on the local console and for `sudo`, so change it with
-`passwd` after the first login.
+Then [build the image](#building-and-flashing-the-sd-card-image).
 
-### Trying it in a virtual machine first
+### In an existing flake
 
-On a Linux computer with Nix (flakes enabled), the same system runs in QEMU:
-
-```sh
-nix run --accept-flake-config github:sweenu/hifiberry-nixos#vm
-```
-
-Then open http://localhost:8080 for the web interface, or
-`ssh -p 2222 hifiberry@localhost` with the SSH key from `hosts/common.nix`. Stop it with
-`Ctrl-a x`, or `sudo poweroff` inside it. The VM keeps its state in
-`hifiberry.qcow2` in the current directory; delete that file to start over.
-
-Everything runs as on the Pi: PipeWire, AudioControl, the configuration server,
-nginx with the web interface and the auth gateway, and the players. What needs
-the Pi's hardware is absent: there is no HiFiBerry card (the VM has a virtual
-sound card whose output goes nowhere, and the players that require a detected
-HiFiBerry card do not start), no Bluetooth and no boot firmware. It is a way to
-explore the interface and the services, not to listen to music.
-
-The VM matches your computer's architecture (`x86_64-linux` or
-`aarch64-linux`) and uses KVM when available. On macOS it needs a Linux
-builder, such as the one nix-darwin provides.
-
-### Prebuilt images
-
-Every push to `main` that builds completely publishes ready-to-flash images
-on the [`latest` release](https://github.com/sweenu/hifiberry-nixos/releases/tag/latest):
-
-- https://github.com/sweenu/hifiberry-nixos/releases/download/latest/hifiberry-nixos-rpi4.img.xz
-
-The published image is set up for a HiFiBerry DAC+ / Amp2 used as a Music
-Assistant (Sendspin) receiver (`hosts/rpi4.nix`, `hosts/common.nix`): its
-overlay is in `config.txt`, and RoomEQ, the DSP toolkit and Wi-Fi setup over
-Bluetooth are turned off. For another card, change `hifiberry.soundcard`, or
-set it to `null` to detect the card at boot like HiFiBerryOS does.
-
-Only the Raspberry Pi 4 image is built by default. For another board, run the
-workflow manually (Actions, Build, Run workflow) with its name (rpi02, rpi3,
-rpi5) and download the image from the run's artifacts.
-
-Flash one with Raspberry Pi Imager ("Use custom") or balenaEtcher, which take
-the `.img.xz` as is, or with
-`xzcat hifiberry-nixos-rpi4.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync`.
-A Raspberry Pi boots from a raw disk image, not an ISO; this is that image.
-
-#### Wi-Fi
-
-Ethernet works with no setup. For Wi-Fi, after flashing, take the card out
-and put it back in: your computer shows its `FIRMWARE` partition. Copy
-`wifi.txt.example` there to `wifi.txt` and fill it in:
-
-```
-ssid=MyNetwork
-password=MyPassword
-```
-
-On its next boot the Pi adds the network to NetworkManager and deletes
-`wifi.txt`, so the password does not stay on the FAT partition. The same works
-later to change networks. To put the file in the image before flashing instead
-(with mtools):
-
-```sh
-xz -dk hifiberry-nixos-rpi4.img.xz
-mcopy -i hifiberry-nixos-rpi4.img@@8M wifi.txt ::wifi.txt
-```
-
-The images are built natively on GitHub's free arm64 runners by
-`.github/workflows/build.yml`. A manual run (`workflow_dispatch`) takes a list
-of boards (rpi02, rpi3, rpi4, rpi5) and keeps the images as workflow
-artifacts; a `v*` tag publishes them on a versioned release.
-
-### CI cache
-
-Everything this repository compiles is cached in GitHub's own Actions cache,
-with no setup. The packages job keeps its outputs and their runtime closure as
-a local Nix binary cache (about 1 GB compressed, well inside the 10 GB the
-repository gets) and saves it under a key derived from `flake.lock` and
-`pkgs/`. Later runs, and the image jobs, restore it and substitute from it, so
-only the packages whose definition changed are rebuilt. Snapshots unused for a
-week are evicted by GitHub.
-
-The same jobs also push everything they build (except the images) to the
-public [Cachix](https://www.cachix.org) cache `sweenu`. That is what lets the
-Pi, and your own machines, download the prebuilt packages when you update the
-system instead of compiling them: the hosts and the flake's `nixConfig` trust
-`sweenu.cachix.org`. Pushing needs a Cachix auth token saved as the repository
-secret `CACHIX_AUTH_TOKEN`; without it the push step is skipped. Set the
-repository variable `CACHIX_CACHE` to push to another cache.
-
-### Updating the Pi
-
-Once CI has built a commit, update the running system with:
-
-```sh
-sudo nixos-rebuild switch --flake github:sweenu/hifiberry-nixos#hifiberry-rpi4
-```
-
-## Using the module in your own NixOS configuration
+Add the input and define the device with `lib.nixosSystem`:
 
 ```nix
 {
   inputs.hifiberry-nixos.url = "github:sweenu/hifiberry-nixos";
 
-  outputs = { hifiberry-nixos, ... }:
-    let nixos-raspberrypi = hifiberry-nixos.inputs.nixos-raspberrypi;
-    in {
-      nixosConfigurations.livingroom = nixos-raspberrypi.lib.nixosSystem {
-        specialArgs = { inherit nixos-raspberrypi; };
-        modules = [
-          nixos-raspberrypi.nixosModules.raspberry-pi-5.base
-          nixos-raspberrypi.nixosModules.raspberry-pi-5.bluetooth
-          hifiberry-nixos.nixosModules.default
-          hifiberry-nixos.nixosModules.sd-image   # only for building an image
-          {
-            hifiberry.enable = true;
-            hifiberry.soundcard = "hifiberry-dacplus";       # skip the detection reboot
-            hifiberry.audiocontrol.secretsFile = ./secrets.txt;  # optional, see below
-            hifiberry.players.mpd.enable = true;             # Sendspin + Bluetooth are on by default
-            networking.hostName = "livingroom";             # optional: fixes the name (see below)
-            users.users.hifiberry.openssh.authorizedKeys.keys = [ "ssh-ed25519 …" ];
-            system.stateVersion = "26.05";
-          }
-        ];
-      };
+  outputs = { hifiberry-nixos, ... }@inputs: {
+    nixosConfigurations.living-room = hifiberry-nixos.lib.nixosSystem {
+      board = "rpi4";
+      modules = [ ./hosts/living-room.nix ];
+      # Optional, passed through to nixosSystem:
+      specialArgs = { inherit inputs; };
     };
+  };
 }
 ```
 
-The main options (`nix eval` or the files in `modules/` for the full list):
+```nix
+# hosts/living-room.nix
+{
+  hifiberry.enable = true;
+  hifiberry.soundcard = "hifiberry-dacplus-std";
+  hifiberry.setup.systemName = "Living room";
+  users.users.hifiberry.openssh.authorizedKeys.keys = [ "ssh-ed25519 AAAA… you@laptop" ];
+  system.stateVersion = "26.05";
+}
+```
 
-| Option | Default | Meaning |
+`lib.nixosSystem` is
+[`nixos-raspberrypi.lib.nixosSystem`](https://github.com/nvmd/nixos-raspberrypi)
+with three additions: the board's modules, the HiFiBerryOS module
+(`nixosModules.default`) and the SD card layout (`nixosModules.sd-image`).
+Every other argument is passed through, so your shared modules and
+`specialArgs` work as on your other hosts.
+
+Two things to keep in mind:
+
+- **Do not make `hifiberry-nixos` follow your own `nixpkgs`.** It builds on the
+  nixpkgs that nixos-raspberrypi pins, and that is what the binary caches
+  hold: the Raspberry Pi kernel and the HiFiBerryOS packages download instead
+  of compiling. To use your own nixpkgs anyway, pass `nixpkgs = inputs.nixpkgs;`
+  to `lib.nixosSystem`, and expect to build the kernel.
+- **To assemble the system yourself**, use the modules directly:
+  `nixos-raspberrypi.lib.nixosSystem` with
+  `nixos-raspberrypi.nixosModules.raspberry-pi-4.base`,
+  `hifiberry-nixos.nixosModules.default` and
+  `hifiberry-nixos.nixosModules.sd-image`.
+
+## Building and flashing the SD card image
+
+```sh
+nix build .#nixosConfigurations.living-room.config.system.build.sdImage
+```
+
+The image is in `result/sd-image/` (`.img.zst`).
+
+**Building on an x86_64 machine** needs a way to run aarch64 builds. Thanks to
+the [binary cache](#binary-cache), only small derivations (configuration
+files, the image itself) are actually built. Either option works:
+
+- **Emulation**, on NixOS: `boot.binfmt.emulatedSystems = [ "aarch64-linux" ];`
+- **A remote aarch64 builder**, for example a Raspberry Pi or a cloud machine.
+
+**Flashing:** [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+("Use custom") takes the `.img.zst` directly; for other tools, decompress it
+first with `unzstd`. From a shell:
+
+```sh
+zstdcat result/sd-image/*.img.zst | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+```
+
+## First boot
+
+1. **Wi-Fi** (skip this with Ethernet). The card's first partition, `FIRMWARE`,
+   is a FAT partition any computer can open. Copy `wifi.txt.example` there to
+   `wifi.txt` and fill it in:
+
+   ```
+   ssid=MyNetwork
+   password=MyPassword
+   ```
+
+   On boot the device adds the network to NetworkManager and deletes the file.
+   Unmount the card before removing it, or the file may not be written.
+
+2. **Boot.** The first boot expands the root filesystem to the card. Without
+   `hifiberry.soundcard`, it also detects the card and reboots once.
+
+3. **Web interface:** `http://hifiberry.local/`, or `http://<hostname>.local/`.
+   The setup wizard asks for:
+   - a password for system changes,
+   - the device name,
+   - the sound card,
+   - the streaming services.
+
+   You can [declare all of it](#skipping-the-setup-wizard) instead.
+
+4. **SSH:** `ssh hifiberry@<hostname>.local`. The initial password is
+   `hifiberry`, for SSH (until you add a key) and `sudo`. Change it with
+   `passwd`, or set `users.users.hifiberry.hashedPassword`.
+
+## Configuration
+
+Everything is under `hifiberry.*`; the main options are below, and
+[docs/options.md](docs/options.md) lists every one. The module sets its
+defaults with `lib.mkDefault` wherever you might reasonably want something
+else. Anything it adds to lists (packages, firewall ports, services) merges
+with yours.
+
+### Sound card
+
+`hifiberry.soundcard` takes the card's device tree overlay, the same one
+HiFiBerryOS' detection picks. Declaring it saves the detection reboot and
+keeps the card fixed across rebuilds:
+
+| Card | `hifiberry.soundcard` |
+|---|---|
+| DAC+ / Amp2, Amp4 | `hifiberry-dacplus-std` |
+| DAC+ Pro, DAC2 Pro | `hifiberry-dacplus-pro` |
+| DAC2 HD | `hifiberry-dacplushd` |
+| DAC+ ADC | `hifiberry-dacplusadc` |
+| DAC+ ADC Pro, DAC2 ADC Pro | `hifiberry-dacplusadcpro` |
+| DAC+ DSP | `hifiberry-dacplusdsp` |
+| DAC8x, DAC8x/ADC8x | `hifiberry-dac8x` |
+| DAC+ Light, DAC+ Zero, MiniAmp, Beocreate | `hifiberry-dac` |
+| ADC | `hifiberry-adc` |
+| Digi+ | `hifiberry-digi` |
+| Digi+ Pro, Digi2 Pro | `hifiberry-digi-pro` |
+| Amp+ | `hifiberry-amp` |
+| Amp3 | `hifiberry-amp3` |
+| Amp4 Pro | `hifiberry-amp4pro` |
+| Amp100 | `hifiberry-amp100,automute` |
+
+Left `null` (the default), the card is detected as on HiFiBerryOS.
+
+### Players
+
+| Player | Option | Default |
 |---|---|---|
-| `hifiberry.enable` | `false` | Turn the whole system on. |
-| `hifiberry.user` / `uid` | `hifiberry` / 1000 | The user whose systemd session runs PipeWire and the players (`/etc/hifiberry.user`). |
-| `hifiberry.soundcard` | `null` | Device tree overlay of the HAT, e.g. `hifiberry-dacplus`. `null` detects at boot. |
-| `hifiberry.audiocontrol.secretsFile` | `null` | `secrets.txt` with HiFiBerry's API credentials (Last.fm, TheAudioDB, Spotify proxy). |
-| `hifiberry.players.sendspin.enable` | `true` | Music Assistant (Sendspin). `.autoStart` enables the service on the first boot; the web UI can toggle it afterwards. |
-| `hifiberry.players.{mpd,librespot,shairport,squeezelite,raat,analogRecognition,aes67,usbaudio,analoginput}.enable` | `false` | The other players, each packaged and ready to enable. |
-| `hifiberry.{bluetooth,dsp,roomeq,vuMeter,bleProvisioning,openssh}.enable` | `true` | Optional services. |
-| `hifiberry.webmcp.enable` | `false` | MCP server for AudioControl. |
+| Music Assistant (Sendspin) | `hifiberry.players.sendspin.enable` | on |
+| Bluetooth audio | `hifiberry.bluetooth.enable` | on |
+| AirPlay 1 and 2 | `hifiberry.players.shairport.enable` | off |
+| Spotify Connect | `hifiberry.players.librespot.enable` | off |
+| Squeezebox / LMS | `hifiberry.players.squeezelite.enable` | off |
+| MPD | `hifiberry.players.mpd.enable` | off |
+| Roon Ready (unfree) | `hifiberry.players.raat.enable` | off |
+| Analog input with track recognition, AES67, USB audio, analog pass-through | `hifiberry.players.{analogRecognition,aes67,usbaudio,analoginput}.enable` | off |
 
-All packages are also available as `packages.<system>.<name>` and through
-`overlays.default` as `pkgs.hifiberry.<name>`.
+An enabled player starts on the first boot. After that, the web interface
+turns players on and off. `hifiberry.players.<name>.autoStart = false`
+installs a player without starting it.
+
+Other components, each on by default:
+
+| Component | Option |
+|---|---|
+| DSP toolkit (only for DSP boards) | `hifiberry.dsp.enable` |
+| Room measurement and correction | `hifiberry.roomeq.enable` |
+| VU meter | `hifiberry.vuMeter.enable` |
+| Wi-Fi setup over Bluetooth LE | `hifiberry.bleProvisioning.enable` |
 
 ### Skipping the setup wizard
 
-Everything the web interface's first-run wizard asks can be declared instead,
-and the wizard is then skipped:
+Everything the web interface's first-run wizard asks can be declared, and the
+wizard is then skipped:
 
 ```nix
 hifiberry.setup = {
   skipWizard = true;
-  systemName = "Bedroom speakers";        # hostname bedroom-speakers(.local)
+  systemName = "Living room";             # hostname living-room(.local)
   webAuth = {
-    protection = "risky";                 # "off", "risky" or "all"
+    protection = "risky";                 # "off", "risky" (system changes) or "all"
     hashedPassword = "$argon2id$v=19$…";  # nix run github:sweenu/hifiberry-nixos#hash-password
-    # or hashedPasswordFile = "/run/secrets/…"; to keep it out of the store
+    # hashedPasswordFile = "/run/secrets/…";  # keeps the hash out of the store
   };
 };
-hifiberry.soundcard = "hifiberry-dacplus-std";  # the wizard's sound card step
-hifiberry.players.sendspin.enable = true;       # its streaming services step
 ```
 
-| Option | Default | Meaning |
-|---|---|---|
-| `hifiberry.setup.skipWizard` | `false` | Mark the setup as done, so the web interface opens straight on the player. |
-| `hifiberry.setup.systemName` | `null` | Device name (Music Assistant, web interface); the hostname is derived from it. Fixed by the configuration when set. |
-| `hifiberry.setup.webAuth.protection` | `null` | Which actions need the web password. Applied, with the password, at every boot. |
-| `hifiberry.setup.webAuth.hashedPassword` / `hashedPasswordFile` | `null` | argon2id hash of the web password, needed for `risky` and `all`. |
+- **Leaving an option `null`** (the default) keeps it with the web interface.
+- **A declared `systemName`** fixes the device name: the web interface can no
+  longer change it.
+- **A declared password and protection** are applied on every boot.
 
-Each is optional: what is left `null` stays in the hands of the web interface.
+### Networking, SSH and the firewall
 
-## How it differs from HiFiBerryOS
+- **NetworkManager** manages the network. The configurator's network settings
+  and `wifi.txt` go through it.
+- **SSH** is on (`hifiberry.openssh.enable`). It accepts passwords only until
+  the `hifiberry` user has an authorized key.
+- **The firewall stays on.** `hifiberry.openFirewall` opens the web interface
+  and the ports of the enabled players; mDNS is opened by Avahi. AirPlay,
+  Spotify Connect, Roon and Squeezelite pick ports at runtime, so enabling
+  them also opens the ephemeral range 32768-60999. For HiFiBerryOS' behaviour
+  (no firewall), set `networking.firewall.enable = false`.
+- **The hostname** defaults to `hifiberry` and is renamed from the web
+  interface, unless you declare `hifiberry.setup.systemName`.
 
-HiFiBerryOS is Raspberry Pi OS plus Debian packages; some of its mechanisms do
-not translate one to one to a declarative NixOS system. See
-[docs/differences.md](docs/differences.md) for the details. In short:
+### Adding your own software
 
-- **Extensions.** HiFiBerryOS installs extra players from its apt repository
-  through the web interface. Here players are NixOS options
-  (`hifiberry.players.*`); the extensions page shows what is installed but
-  cannot install anything.
-- **config.txt.** Generated from the configuration on every rebuild. The lines
-  HiFiBerryOS writes at runtime (the detected card's overlay) live in
-  `/boot/firmware/hifiberry.txt`, which `config.txt` includes, so they survive
-  rebuilds. Set `hifiberry.soundcard` to make the overlay declarative instead.
-- **Enabling and disabling players** from the web interface works, but through
-  the player user's own systemd configuration (`~/.config/systemd/user`)
-  rather than `systemctl --global`, because `/etc/systemd/user` is read-only.
-- **AudioControl's credentials.** HiFiBerry compiles API keys for Last.fm,
-  TheAudioDB and its Spotify OAuth proxy into the binary from a private
-  `secrets.txt`. Those are not public; without them scrobbling, TheAudioDB
-  lookups and the Spotify account link do not work. Provide your own keys via
-  `hifiberry.audiocontrol.secretsFile` if you have them.
-- **Roon (RAAT).** The RAAT SDK is proprietary and HiFiBerry's `raat`
-  repository is private, so `pkgs/raat` repackages the binaries from
-  HiFiBerry's Debian repository (aarch64 only, `allowUnfreePredicate` is set
-  for it). It is off unless `hifiberry.players.raat.enable = true`.
-- **Hostname.** Defaults to `hifiberry` and, like on HiFiBerryOS, is renamed
-  from the setup wizard or the system settings. Setting `networking.hostName`
-  fixes it in the configuration instead, and the web interface can then only
-  change the display name.
-- **No firewall**, like Raspberry Pi OS. Set `networking.firewall.enable = true`
-  and open ports yourself if you want one.
+The device is an ordinary NixOS system. Add packages, services, users or
+anything else as on any NixOS host:
+
+```nix
+{
+  environment.systemPackages = [ pkgs.htop ];
+  services.tailscale.enable = true;
+  time.timeZone = "Europe/Paris";
+}
+```
+
+To change a default the module sets, assign it:
+
+- **`lib.mkDefault` defaults**, such as `nix.gc.options`,
+  `networking.networkmanager.enable` or `documentation.enable`: a plain
+  assignment wins.
+- **Required settings** are set without `mkDefault`; use `lib.mkForce` if you
+  really mean to change one.
+
+The packages are also available on their own: as `packages.<system>.<name>`,
+or through `overlays.default` as `pkgs.hifiberry.<name>`.
+
+## Updating a device
+
+From the machine that holds your flake:
+
+```sh
+nixos-rebuild switch --flake .#living-room --target-host hifiberry@living-room.local --sudo --ask-sudo-password
+```
+
+Or on the device, with the flake in a Git repository it can reach:
+
+```sh
+sudo nixos-rebuild switch --flake github:you/your-config#living-room
+```
+
+Deploy tools such as [deploy-rs](https://github.com/serokell/deploy-rs) or
+[colmena](https://github.com/zhaofengli/colmena) work as for any NixOS host.
+
+## Binary cache
+
+This repository's CI builds every package for aarch64-linux and pushes it to
+[sweenu.cachix.org](https://sweenu.cachix.org); nixos-raspberrypi does the
+same for the kernel and firmware at
+[nixos-raspberrypi.cachix.org](https://nixos-raspberrypi.cachix.org).
+
+- **On the device**, `hifiberry.binaryCache.enable` (on by default) adds the
+  cache, so updates download the packages.
+- **On the machine building the image**, accept the flake's `nixConfig` when
+  Nix asks, or add the caches yourself:
+
+  ```nix
+  nix.settings = {
+    extra-substituters = [ "https://nixos-raspberrypi.cachix.org" "https://sweenu.cachix.org" ];
+    extra-trusted-public-keys = [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+      "sweenu.cachix.org-1:DvQl16NWBp41k5IlxTODTOrIThyGRj8/ekrXxEheBQ0="
+    ];
+  };
+  ```
+
+The packages match the cache when the system is built on this flake's
+nixpkgs, which is what `lib.nixosSystem` does.
+
+## Trying it in a virtual machine
+
+```sh
+nix run github:sweenu/hifiberry-nixos#vm
+```
+
+This boots the system in QEMU. It runs everything except what needs the Pi's
+hardware: there is no HiFiBerry card, no Bluetooth and no boot firmware.
+
+- **Web interface:** http://localhost:8080
+- **SSH:** `ssh -p 2222 hifiberry@localhost`, password `hifiberry`
+
+Its disk is `hifiberry.qcow2` in the current directory; delete it to start
+over.
+
+## Reference
+
+- [docs/options.md](docs/options.md): every option, generated from the module.
+- [docs/differences.md](docs/differences.md): how this differs from
+  HiFiBerryOS, and why.
+- [docs/updating.md](docs/updating.md): updating the packaged components.
 
 ## Development
 
 The development environment is managed with [devenv](https://devenv.sh):
 
 ```sh
-devenv shell          # or `direnv allow` with .envrc
-image rpi5            # build an SD image
-build-packages        # build every package for this machine
-eval-host rpi4        # evaluate a configuration without building
-fmt && lint           # nixfmt, statix, deadnix
+devenv shell             # or `direnv allow` with .envrc
+build-packages           # build every package for this machine
+eval-example rpi4        # evaluate the example configuration for a board
+image rpi4               # build the example SD card image
+fmt && lint              # nixfmt, statix, deadnix
 ```
 
-Every upstream component is pinned in `pkgs/sources.nix`. To update one, bump
-its `rev` and `hash` (`prefetch-source hifiberry acr main` prints them) and the
-version in its `pkgs/<name>/default.nix`. `pkgs/pipewire-api/Cargo.lock` is
-kept here because upstream ships none; regenerate it with
-`cargo generate-lockfile` when updating that package.
+CI (`.github/workflows/build.yml`) runs on GitHub's arm64 runners, for every
+push and pull request:
+
+- evaluates every example system and the VMs, and checks formatting;
+- checks that `docs/options.md` is up to date:
+  `cp $(nix build --print-out-paths --no-link .#options-doc) docs/options.md`;
+- builds every package and pushes them to Cachix (with a `CACHIX_AUTH_TOKEN`
+  secret);
+- builds the example Raspberry Pi 4 system end to end.
+
+The `example-<board>` configurations are the template's `configuration.nix`
+on each board.
 
 ## Licenses
 

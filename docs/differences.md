@@ -88,9 +88,12 @@ web interface can then only set the display (pretty) name.
 
 ## Firewall
 
-Raspberry Pi OS runs no firewall, and AirPlay, Spotify Connect, Roon, Sendspin
-and MPD need many ports; the module sets `networking.firewall.enable = false`
-by default (`lib.mkDefault`, override it if you prefer).
+Raspberry Pi OS runs no firewall. NixOS does by default, and the module keeps
+it: with `hifiberry.openFirewall` (on by default) it opens port 80 for the web
+interface and the ports of each enabled player (Sendspin 8928, MPD 6600, and
+for AirPlay, Spotify Connect, Roon, Squeezelite and AES67, which pick ports at
+runtime, their fixed ports plus the ephemeral range 32768-60999). Avahi opens
+mDNS. For HiFiBerryOS' behaviour, set `networking.firewall.enable = false`.
 
 ## AudioControl credentials
 

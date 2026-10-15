@@ -8,10 +8,9 @@
 # whose output goes nowhere.
 { lib, modulesPath, ... }:
 {
-  imports = [
-    ./common.nix
-    (modulesPath + "/virtualisation/qemu-vm.nix")
-  ];
+  imports = [ (modulesPath + "/virtualisation/qemu-vm.nix") ];
+
+  hifiberry.enable = true;
 
   # Nothing to detect: without a HAT, detection would only log failures.
   systemd.services.config-detect.enable = false;
@@ -42,7 +41,7 @@
         host.port = 8080;
         guest.port = 80;
       }
-      # SSH: ssh -p 2222 hifiberry@localhost (key from common.nix)
+      # SSH: ssh -p 2222 hifiberry@localhost (password hifiberry)
       {
         from = "host";
         host.port = 2222;

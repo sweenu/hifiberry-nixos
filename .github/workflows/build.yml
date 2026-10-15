@@ -1,11 +1,13 @@
-# Build the packages and SD card images natively on GitHub's arm64 runners.
+# Build and cache the packages natively on GitHub's arm64 runners.
 #
-# - every push and pull request: evaluate the flake, check formatting, build
-#   all packages for aarch64-linux
-# - pushes to main: also build the Pi 4 SD image; manual runs can pick boards
-# - pushes to main where everything built: publish the images on the rolling
-#   `latest` release, ready to flash with Raspberry Pi Imager or balenaEtcher
-# - tags (v*): publish the images on a versioned release
+# - every push and pull request: evaluate the flake (every example system and
+#   the VMs), check formatting, build every package for aarch64-linux, and
+#   build the example Raspberry Pi 4 system end to end
+# - with CACHIX_AUTH_TOKEN set: push the packages to Cachix, so downstream
+#   systems download them instead of compiling them
+#
+# SD card images are not built here: users build theirs from their own
+# configuration (see README).
 name: Build
 
 on:
@@ -14,14 +16,9 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
-    inputs:
-      boards:
-        description: "Boards to build images for (space separated: rpi02 rpi3 rpi4 rpi5)"
-        default: "rpi4"
-        required: false
 
 permissions:
-  contents: write
+  contents: read
 
 # A newer push supersedes a running build of the same branch.
 concurrency:
@@ -91,12 +88,10 @@ jobs:
         with:
           name: ${{ env.CACHIX_CACHE }}
           authToken: ${{ env.CACHIX_AUTH_TOKEN }}
-          # The SD images are published as release assets, not cached.
-          pushFilter: '\.img\.zst$'
       - name: Build every package
         run: |
           set -euo pipefail
-          nix eval --json .#packages.aarch64-linux --apply 'p: builtins.filter (n: !(builtins.match "image-.*" n != null)) (builtins.attrNames p)' \
+          nix eval --json .#packages.aarch64-linux --apply 'builtins.attrNames' \
             | jq -r '.[] | ".#packages.aarch64-linux.\(.)"' > "$RUNNER_TEMP/targets"
           cat "$RUNNER_TEMP/targets"
           nix build --print-build-logs --keep-going --no-link $(cat "$RUNNER_TEMP/targets")
@@ -120,44 +115,19 @@ jobs:
           path: ${{ runner.temp }}/nix-cache
           key: nix-packages-${{ hashFiles('flake.lock', 'pkgs/**') }}
 
-  plan:
-    name: Select boards
-    runs-on: ubuntu-24.04
-    if: github.event_name != 'pull_request'
-    outputs:
-      boards: ${{ steps.boards.outputs.boards }}
-    steps:
-      - id: boards
-        run: |
-          boards="${{ github.event.inputs.boards || 'rpi4' }}"
-          echo "boards=$(printf '%s\n' $boards | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
-
-  image:
-    name: SD image ${{ matrix.board }}
+  system:
+    name: Example system (Pi 4)
     runs-on: ubuntu-24.04-arm
-    # After the packages job, so the images reuse the packages it cached
-    # instead of every job compiling them at the same time.
-    needs: [check, plan, packages]
-    if: github.event_name != 'pull_request'
-    strategy:
-      fail-fast: false
-      matrix:
-        board: ${{ fromJSON(needs.plan.outputs.boards) }}
+    # After the packages job, so it reuses the packages that job cached.
+    needs: packages
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
-          df -h /
       - uses: cachix/install-nix-action@v31
         with:
-          # The restored package cache is a local, unsigned binary cache;
-          # trusted=1 lets Nix substitute from it without signatures.
           extra_nix_config: |
             extra-substituters = https://nixos-raspberrypi.cachix.org file://${{ runner.temp }}/nix-cache?trusted=1&priority=10
             extra-trusted-public-keys = nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
       - name: Restore package cache
-        id: nix-cache
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/nix-cache
@@ -168,81 +138,14 @@ jobs:
           cache="$RUNNER_TEMP/nix-cache"
           mkdir -p "$cache"
           [ -f "$cache/nix-cache-info" ] || printf 'StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 10\n' > "$cache/nix-cache-info"
-          du -sh "$cache"
-      # After the package cache is in place: Cachix runs Nix, and the first
-      # Nix command creates a missing file:// cache directory as root, which
-      # the restore and the snapshot can then not write to.
-      - name: Use and fill Cachix
+      # Read from Cachix only: the packages job pushes what downstream systems
+      # need; this system's kernel and configuration files are not worth
+      # storing.
+      - name: Use Cachix
         if: env.CACHIX_AUTH_TOKEN != ''
         uses: cachix/cachix-action@v17
         with:
           name: ${{ env.CACHIX_CACHE }}
-          authToken: ${{ env.CACHIX_AUTH_TOKEN }}
-          # The SD images are published as release assets, not cached.
-          pushFilter: '\.img\.zst$'
-      - name: Build image
-        run: |
-          nix build --print-build-logs --out-link result ".#images.${{ matrix.board }}"
-          ls -la result/sd-image/
-      - name: Prepare flashable image
-        run: |
-          set -euo pipefail
-          mkdir -p out
-          name="hifiberry-nixos-${{ matrix.board }}.img.xz"
-          # .img.xz is what Raspberry Pi Imager and balenaEtcher flash directly.
-          zstd -dc result/sd-image/*.img.zst | xz -T0 -6 > "out/$name"
-          (cd out && sha256sum "$name" > "$name.sha256")
-          ls -la out/
-      - name: Upload image
-        uses: actions/upload-artifact@v4
-        with:
-          name: hifiberry-nixos-${{ matrix.board }}
-          path: out/*
-          compression-level: 0
-          retention-days: 14
-
-  publish:
-    name: Publish images
-    runs-on: ubuntu-24.04
-    needs: [check, packages, image]
-    # Only when every package and every image built.
-    if: >-
-      success() && github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: hifiberry-nixos-*
-          merge-multiple: true
-          path: images
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          ls -la images/
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            tag="$GITHUB_REF_NAME"
-            title="HiFiBerryOS on NixOS $tag"
-            flags=(--verify-tag)
-          else
-            # Rolling release: move the `latest` tag to this commit.
-            tag=latest
-            title="Latest build ($(echo "$GITHUB_SHA" | cut -c1-7))"
-            flags=(--target "$GITHUB_SHA" --prerelease)
-            gh release delete latest --cleanup-tag --yes 2>/dev/null || true
-          fi
-          cat > notes.md <<NOTES
-          SD card images built from ${GITHUB_SHA}.
-
-          Download the image for your board, then flash it with
-          [Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom")
-          or [balenaEtcher](https://etcher.balena.io/); both take the .img.xz as is.
-          From a shell:
-
-              xzcat hifiberry-nixos-rpi4.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
-
-          Log in as hifiberry / hifiberry, or open http://hifiberry.local/.
-          NOTES
-          gh release create "$tag" images/* --title "$title" --notes-file notes.md "${flags[@]}"
+          skipPush: true
+      - name: Build the example system
+        run: nix build --print-build-logs --no-link .#checks.aarch64-linux.example-rpi4

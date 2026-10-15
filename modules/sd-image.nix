@@ -1,6 +1,7 @@
-# An SD card image of a complete HiFiBerryOS system, based on nixos-raspberrypi's
-# sd-image. Build with `nix build .#images.rpi5` (or rpi4, rpi3, rpi02) and
-# write the result to a card with dd or Raspberry Pi Imager.
+# The SD card layout (FIRMWARE and NIXOS_SD partitions) and the image builder,
+# based on nixos-raspberrypi's sd-image. hifiberry-nixos.lib.nixosSystem
+# includes it; build the image with
+#   nix build .#nixosConfigurations.<host>.config.system.build.sdImage
 {
   config,
   lib,

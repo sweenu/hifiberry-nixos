@@ -1,5 +1,5 @@
 # HiFiBerryOS for NixOS. Import this module and set `hifiberry.enable = true`
-# on a Raspberry Pi configuration (see hosts/ for complete examples).
+# on a Raspberry Pi configuration (see templates/default for a complete one).
 { lib, ... }:
 {
   imports = [
@@ -18,6 +18,7 @@
     ./webmcp.nix
     ./wifi-setup.nix
     ./setup.nix
+    ./firewall.nix
   ];
 
   meta.maintainers = [ ];

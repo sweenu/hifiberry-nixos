@@ -12,6 +12,10 @@ let
 
   # /usr/share/hifiberry as HiFiBerryOS' components expect it: players.d,
   # features.d, dspprofiles, speaker-presets, signals, ... all merged.
+  noSshKey =
+    config.users.users.${cfg.user}.openssh.authorizedKeys.keys == [ ]
+    && config.users.users.${cfg.user}.openssh.authorizedKeys.keyFiles == [ ];
+
   shareEnv = pkgs.buildEnv {
     name = "hifiberry-share";
     paths = cfg.internal.sharePackages;
@@ -152,7 +156,7 @@ in
       SYSTEMD_ETC_MACHINE_INFO = lib.mkForce "/etc/machine-info";
     };
     # Keep the name the user chose rather than one from DHCP or reverse DNS.
-    networking.networkmanager.settings.main.hostname-mode = "none";
+    networking.networkmanager.settings.main.hostname-mode = lib.mkDefault "none";
 
     # Avahi and Sendspin read the name when they start; announce a new one.
     systemd.paths.hifiberry-hostname = {
@@ -170,16 +174,15 @@ in
         systemctl --user -M ${cfg.user}@ try-restart sendspin.service || true
       '';
     };
-    # HiFiBerryOS (Raspberry Pi OS) runs no firewall; AirPlay, Spotify Connect,
-    # Roon and Sendspin negotiate ports dynamically.
-    networking.firewall.enable = lib.mkDefault false;
+    # NetworkManager: the configurator's network settings, wifi.txt and Wi-Fi
+    # setup over Bluetooth LE all go through it.
     networking.networkmanager.enable = lib.mkDefault true;
     # NetworkManager runs wpa_supplicant through networking.wireless (in its
     # D-Bus controlled mode); turning that option off leaves Wi-Fi unable to connect.
 
     services.avahi = {
       enable = true;
-      nssmdns4 = true;
+      nssmdns4 = lib.mkDefault true;
       publish = {
         enable = true;
         addresses = true;
@@ -202,10 +205,15 @@ in
 
     services.openssh = lib.mkIf cfg.openssh.enable {
       enable = true;
-      settings.PasswordAuthentication = lib.mkDefault true;
+      # The initial password is public: only accept passwords (directly or
+      # through keyboard-interactive PAM) until a key is set up.
+      settings = {
+        PasswordAuthentication = lib.mkDefault noSshKey;
+        KbdInteractiveAuthentication = lib.mkDefault noSshKey;
+      };
     };
 
-    security.sudo.enable = true;
+    security.sudo.enable = lib.mkDefault true;
     security.rtkit.enable = true;
     services.dbus.enable = true;
 
@@ -214,6 +222,24 @@ in
     # /dev/i2c-* for the i2c group, so the player user's card detection can probe
     hardware.i2c.enable = true;
 
-    hardware.enableRedistributableFirmware = true;
+    hardware.enableRedistributableFirmware = lib.mkDefault true;
+
+    # A headless appliance on an SD card: a small closure, and a store that
+    # does not fill the card.
+    documentation.enable = lib.mkDefault false;
+    documentation.nixos.enable = lib.mkDefault false;
+    nix.gc = {
+      automatic = lib.mkDefault true;
+      dates = lib.mkDefault "weekly";
+      options = lib.mkDefault "--delete-older-than 14d";
+    };
+
+    nix.settings = lib.mkMerge [
+      { auto-optimise-store = lib.mkDefault true; }
+      (lib.mkIf cfg.binaryCache.enable {
+        substituters = [ "https://sweenu.cachix.org" ];
+        trusted-public-keys = [ "sweenu.cachix.org-1:DvQl16NWBp41k5IlxTODTOrIThyGRj8/ekrXxEheBQ0=" ];
+      })
+    ];
   };
 }

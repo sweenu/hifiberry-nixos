@@ -151,8 +151,37 @@
       default = true;
     };
     webmcp.enable = lib.mkEnableOption "the AudioControl MCP server (acr-webmcp)";
-    openssh.enable = lib.mkEnableOption "SSH access with password authentication" // {
+    openssh.enable =
+      lib.mkEnableOption ''
+        SSH access. Password logins are accepted only while the player user has
+        no `openssh.authorizedKeys`, since the initial password is public
+      ''
+      // {
+        default = true;
+      };
+
+    openFirewall = lib.mkOption {
+      type = lib.types.bool;
       default = true;
+      description = ''
+        Open the firewall for the web interface (80) and for each enabled
+        player: Sendspin (8928), MPD (6600), and for AirPlay, Spotify Connect,
+        Roon, Squeezelite and AES67, which pick ports at runtime, their fixed
+        ports plus the ephemeral range 32768-60999. mDNS is opened by Avahi.
+        Has no effect while `networking.firewall.enable` is false.
+      '';
+    };
+
+    binaryCache.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Add the cache this project's CI fills (sweenu.cachix.org) to the
+        device's Nix substituters, so rebuilding on the device downloads the
+        HiFiBerry packages instead of compiling them. They match when the
+        system uses the same nixpkgs as this flake, as `lib.nixosSystem`
+        does.
+      '';
     };
 
     # Aggregated by the component modules.
