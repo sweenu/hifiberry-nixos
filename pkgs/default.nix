@@ -41,4 +41,5 @@ lib.makeScope pkgs.newScope (self: {
   acr-webmcp = self.callPackage ./acr-webmcp { };
   nowplaying-sdl = self.callPackage ./nowplaying-sdl { };
   songcompare = self.callPackage ./songcompare { };
+  hash-password = self.callPackage ./hash-password { };
 })

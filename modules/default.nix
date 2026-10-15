@@ -17,6 +17,7 @@
     ./players/default.nix
     ./webmcp.nix
     ./wifi-setup.nix
+    ./setup.nix
   ];
 
   meta.maintainers = [ ];

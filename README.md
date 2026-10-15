@@ -204,6 +204,34 @@ The main options (`nix eval` or the files in `modules/` for the full list):
 All packages are also available as `packages.<system>.<name>` and through
 `overlays.default` as `pkgs.hifiberry.<name>`.
 
+### Skipping the setup wizard
+
+Everything the web interface's first-run wizard asks can be declared instead,
+and the wizard is then skipped:
+
+```nix
+hifiberry.setup = {
+  skipWizard = true;
+  systemName = "Bedroom speakers";        # hostname bedroom-speakers(.local)
+  webAuth = {
+    protection = "risky";                 # "off", "risky" or "all"
+    hashedPassword = "$argon2id$v=19$…";  # nix run github:sweenu/hifiberry-nixos#hash-password
+    # or hashedPasswordFile = "/run/secrets/…"; to keep it out of the store
+  };
+};
+hifiberry.soundcard = "hifiberry-dacplus-std";  # the wizard's sound card step
+hifiberry.players.sendspin.enable = true;       # its streaming services step
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `hifiberry.setup.skipWizard` | `false` | Mark the setup as done, so the web interface opens straight on the player. |
+| `hifiberry.setup.systemName` | `null` | Device name (Music Assistant, web interface); the hostname is derived from it. Fixed by the configuration when set. |
+| `hifiberry.setup.webAuth.protection` | `null` | Which actions need the web password. Applied, with the password, at every boot. |
+| `hifiberry.setup.webAuth.hashedPassword` / `hashedPasswordFile` | `null` | argon2id hash of the web password, needed for `risky` and `all`. |
+
+Each is optional: what is left `null` stays in the hands of the web interface.
+
 ## How it differs from HiFiBerryOS
 
 HiFiBerryOS is Raspberry Pi OS plus Debian packages; some of its mechanisms do

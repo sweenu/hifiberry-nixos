@@ -132,6 +132,12 @@
           }/bin/run-hifiberry-vm";
           meta.description = "Run HiFiBerryOS in a QEMU virtual machine (web interface on http://localhost:8080)";
         };
+        # nix run .#hash-password: for hifiberry.setup.webAuth.hashedPassword
+        hash-password = {
+          type = "app";
+          program = "${self.packages.${system}.hash-password}/bin/hash-password";
+          meta.description = "Hash a web interface password for hifiberry.setup.webAuth.hashedPassword";
+        };
       });
 
       checks = forAllSystems (
