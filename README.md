@@ -435,6 +435,9 @@ image rpi4               # build the example SD card image
 fmt && lint              # nixfmt, statix, deadnix
 ```
 
+Notes for coding agents (conventions, checks, pitfalls) are in
+[AGENTS.md](AGENTS.md).
+
 CI (`.github/workflows/build.yml`) runs on GitHub's arm64 runners, for every
 push and pull request:
 

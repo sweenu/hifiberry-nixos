@@ -22,8 +22,11 @@ Component-specific notes:
   bumping, so evaluation does not need the fetched source. pipewire-api ships
   none upstream; run `cargo generate-lockfile` in its checkout instead.
 - **sendspin**: `CMakeLists.txt` and `cmake/host.cmake` of sendspin-cpp pin
-  the FetchContent dependencies (sendspin-cpp commit, ArduinoJson, micro-flac,
-  micro-opus, IXWebSocket); update those entries in `pkgs/sources.nix` together.
+  the FetchContent dependencies (ArduinoJson, micro-flac, micro-opus,
+  IXWebSocket, noise-c); update those entries in `pkgs/sources.nix` together
+  with sendspin-cpp. The wrapper is ported to sendspin-cpp 0.9 by
+  `pkgs/sendspin/sendspin-cpp-0.9.patch`, which pins the sendspin-cpp tag in
+  hifiberry/sendspin's CMakeLists.txt; regenerate it against the new tag.
 - **shairport, squeezelite, mpd, librespot**: the upstream commits/tags are
   the ones hifiberry-shairport, hifiberry-squeezelite, hifiberry-os
   (`packages/mpd/src/debian/rules`) and hifiberry-librespot build.
