@@ -20,8 +20,10 @@
     compressImage = true;
     # Start with a root filesystem that gets expanded to the card on first boot.
     expandOnBoot = true;
+    # dtparam=i2c_arm=on is already in config.txt; card detection checks this file
+    # and would otherwise try to add it, which fails when it runs as the player user.
     populateFirmwareCommands = lib.mkAfter ''
-      printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\n' > ./firmware/hifiberry.txt
+      printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\ndtparam=i2c_arm=on\n' > ./firmware/hifiberry.txt
       cat > ./firmware/wifi.txt.example <<'EOF'
       # To join a Wi-Fi network on the next boot, copy this file to wifi.txt
       # (in this same folder) and fill in your network. The Pi adds it, then

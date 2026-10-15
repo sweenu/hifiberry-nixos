@@ -43,6 +43,11 @@ in
         };
       };
 
+      # The Raspberry Pi kernel registers the onboard headphone output even with
+      # dtparam=audio=off; it would become ALSA card 0 and a PipeWire sink next to
+      # the HiFiBerry card. HiFiBerryOS has only the HiFiBerry card.
+      boot.blacklistedKernelModules = [ "snd_bcm2835" ];
+
       hardware.raspberry-pi.extra-config = lib.mkAfter (
         ''
           [all]
@@ -57,7 +62,7 @@ in
       );
 
       # Make sure the included file exists so the firmware has nothing to complain
-      # about on the first boot.
+      # about on the first boot (see sd-image.nix for its i2c_arm line).
       systemd.services.hifiberry-firmware-config = {
         description = "Create /boot/firmware/hifiberry.txt";
         wantedBy = [ "multi-user.target" ];
@@ -69,7 +74,7 @@ in
         };
         script = ''
           if [ ! -e /boot/firmware/hifiberry.txt ]; then
-            printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\n' > /boot/firmware/hifiberry.txt
+            printf '# HiFiBerry sound card configuration, managed by config-detect/config-configtxt\ndtparam=i2c_arm=on\n' > /boot/firmware/hifiberry.txt
           fi
         '';
       };

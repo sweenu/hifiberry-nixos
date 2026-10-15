@@ -180,6 +180,8 @@ in
 
     # i2c-dev for sound card detection (config-server-i2c.conf in HiFiBerryOS)
     boot.kernelModules = [ "i2c-dev" ];
+    # /dev/i2c-* for the i2c group, so the player user's card detection can probe
+    hardware.i2c.enable = true;
 
     hardware.enableRedistributableFirmware = true;
   };

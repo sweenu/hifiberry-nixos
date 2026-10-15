@@ -41,6 +41,12 @@ in
             pkgs.coreutils
           ]
         }:$PATH
+        # start-sendspin exits successfully, and for good, when it finds no sound
+        # card; at boot the card can still be coming up, so give it a minute.
+        for _ in $(seq 1 20); do
+          config-soundcard --detected >/dev/null 2>&1 && break
+          sleep 3
+        done
         exec ${hb.sendspin}/bin/start-sendspin "$@"
       ''}";
       wants = [ "avahi-daemon.service" ];
