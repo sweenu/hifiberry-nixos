@@ -74,10 +74,17 @@ and `/etc/audiocontrol/players.d` are populated from the packages with
 
 ## Hostname
 
-`hostnamectl set-hostname` cannot change the static hostname on NixOS
-(`/etc/hostname` is managed). The web interface can still set the *pretty*
-hostname, which is what the players announce over mDNS. Set
-`networking.hostName` in the configuration for the static name.
+NixOS normally manages `/etc/hostname` and points `systemd-hostnamed` at
+read-only copies in `/etc/static`, so `hostnamectl set-hostname` fails. The
+module leaves the hostname unmanaged instead (`networking.hostName = ""`), with
+`DEFAULT_HOSTNAME=hifiberry` in `/etc/os-release` as the name until one is set,
+and lets `systemd-hostnamed` write `/etc/hostname` and `/etc/machine-info`. The
+setup wizard and the system settings then rename the device as on HiFiBerryOS;
+a path unit restarts Avahi and Sendspin so they announce the new name.
+NetworkManager is told not to take a hostname from DHCP.
+
+Setting `networking.hostName` in the configuration fixes the name again; the
+web interface can then only set the display (pretty) name.
 
 ## Firewall
 

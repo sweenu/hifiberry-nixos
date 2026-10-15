@@ -138,7 +138,38 @@ in
         pipewire-api
       ]);
 
-    networking.hostName = lib.mkDefault "hifiberry";
+    # The name is the user's to change (setup wizard, system settings), so it is
+    # not set here: /etc/hostname stays writable for hostnamectl, and
+    # DEFAULT_HOSTNAME makes it "hifiberry" until it is changed.
+    networking.hostName = lib.mkDefault "";
+    system.nixos.extraOSReleaseArgs.DEFAULT_HOSTNAME = lib.mkDefault "hifiberry";
+    # Names derived from the hostname otherwise (the VM script and its disk).
+    system.name = lib.mkDefault "hifiberry";
+    # NixOS points hostnamed at the read-only /etc/static copies; with the name
+    # unmanaged, let it write the real files.
+    systemd.services.systemd-hostnamed.environment = {
+      SYSTEMD_ETC_HOSTNAME = lib.mkForce "/etc/hostname";
+      SYSTEMD_ETC_MACHINE_INFO = lib.mkForce "/etc/machine-info";
+    };
+    # Keep the name the user chose rather than one from DHCP or reverse DNS.
+    networking.networkmanager.settings.main.hostname-mode = "none";
+
+    # Avahi and Sendspin read the name when they start; announce a new one.
+    systemd.paths.hifiberry-hostname = {
+      wantedBy = [ "multi-user.target" ];
+      pathConfig.PathChanged = [
+        "/etc/hostname"
+        "/etc/machine-info"
+      ];
+    };
+    systemd.services.hifiberry-hostname = {
+      description = "Announce the new system name";
+      serviceConfig.Type = "oneshot";
+      script = ''
+        systemctl try-restart avahi-daemon.service
+        systemctl --user -M ${cfg.user}@ try-restart sendspin.service || true
+      '';
+    };
     # HiFiBerryOS (Raspberry Pi OS) runs no firewall; AirPlay, Spotify Connect,
     # Roon and Sendspin negotiate ports dynamically.
     networking.firewall.enable = lib.mkDefault false;

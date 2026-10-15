@@ -178,7 +178,7 @@ sudo nixos-rebuild switch --flake github:sweenu/hifiberry-nixos#hifiberry-rpi4
             hifiberry.soundcard = "hifiberry-dacplus";       # skip the detection reboot
             hifiberry.audiocontrol.secretsFile = ./secrets.txt;  # optional, see below
             hifiberry.players.mpd.enable = true;             # Sendspin + Bluetooth are on by default
-            networking.hostName = "livingroom";
+            networking.hostName = "livingroom";             # optional: fixes the name (see below)
             users.users.hifiberry.openssh.authorizedKeys.keys = [ "ssh-ed25519 …" ];
             system.stateVersion = "26.05";
           }
@@ -230,8 +230,10 @@ not translate one to one to a declarative NixOS system. See
   repository is private, so `pkgs/raat` repackages the binaries from
   HiFiBerry's Debian repository (aarch64 only, `allowUnfreePredicate` is set
   for it). It is off unless `hifiberry.players.raat.enable = true`.
-- **Hostname.** The static hostname is set in the configuration
-  (`networking.hostName`); the web interface can still set the pretty name.
+- **Hostname.** Defaults to `hifiberry` and, like on HiFiBerryOS, is renamed
+  from the setup wizard or the system settings. Setting `networking.hostName`
+  fixes it in the configuration instead, and the web interface can then only
+  change the display name.
 - **No firewall**, like Raspberry Pi OS. Set `networking.firewall.enable = true`
   and open ports yourself if you want one.
 

@@ -13,8 +13,6 @@
     (modulesPath + "/virtualisation/qemu-vm.nix")
   ];
 
-  networking.hostName = "hifiberry";
-
   # Nothing to detect: without a HAT, detection would only log failures.
   systemd.services.config-detect.enable = false;
   # Creates the "Softvol" control from an ALSA state written for the HiFiBerry
