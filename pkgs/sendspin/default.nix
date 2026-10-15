@@ -19,6 +19,13 @@ stdenv.mkDerivation {
 
   src = sources.sendspin;
 
+  # Port to sendspin-cpp 0.9 and the Sendspin 1.0 protocol, which Music Assistant
+  # expects (hifiberry-sendspin still pins a pre-1.0 commit): the client's
+  # identity and pairing records persist (--state-file), unpaired access for
+  # servers the operator approved (--unpaired-access, on by default), pairing
+  # codes and tokens in the log, and the server can adjust the output delay.
+  patches = [ ./sendspin-cpp-0.9.patch ];
+
   nativeBuildInputs = [
     cmake
     pkg-config
@@ -42,12 +49,14 @@ stdenv.mkDerivation {
     cp -r --no-preserve=mode,ownership ${sources.micro-flac} $deps/micro_flac
     cp -r --no-preserve=mode,ownership ${sources.micro-opus} $deps/micro_opus
     cp -r --no-preserve=mode,ownership ${sources.ixwebsocket} $deps/ixwebsocket
+    cp -r --no-preserve=mode,ownership ${sources.noise-c} $deps/noise_c
     cmakeFlagsArray+=(
       "-DFETCHCONTENT_SOURCE_DIR_SENDSPIN=$deps/sendspin"
       "-DFETCHCONTENT_SOURCE_DIR_ARDUINOJSON=$deps/arduinojson"
       "-DFETCHCONTENT_SOURCE_DIR_MICRO_FLAC=$deps/micro_flac"
       "-DFETCHCONTENT_SOURCE_DIR_MICRO_OPUS=$deps/micro_opus"
       "-DFETCHCONTENT_SOURCE_DIR_IXWEBSOCKET=$deps/ixwebsocket"
+      "-DFETCHCONTENT_SOURCE_DIR_NOISE_C=$deps/noise_c"
     )
   '';
 

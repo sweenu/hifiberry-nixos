@@ -120,11 +120,13 @@
   };
 
   # sendspin-cpp and the libraries its CMake build fetches with FetchContent.
+  # sendspin-cpp, newer than the commit hifiberry-sendspin pins: 0.9 speaks the
+  # Sendspin 1.0 protocol (pkgs/sendspin/sendspin-cpp-0.9.patch ports the player).
   sendspin-cpp = fetchFromGitHub {
     owner = "Sendspin";
     repo = "sendspin-cpp";
-    rev = "bf9e085b45f745fbd3409c42c7f488ce978eef48";
-    hash = "sha256-fLk3qZlehrSGlAXA54CpnkWqr2qpP7ajqo6iKZ9K6aQ=";
+    rev = "b95cf854a784ed308b1f8fe9697f414b02768ddd"; # v0.9.5
+    hash = "sha256-swiv8+AfLQelAlfRF5oSCiJ62ZyJjKpaHo8S+YP2lR0=";
   };
   arduinojson = fetchFromGitHub {
     owner = "bblanchon";
@@ -135,9 +137,9 @@
   micro-flac = fetchgit {
     name = "micro-flac";
     url = "https://github.com/esphome-libs/micro-flac.git";
-    rev = "9f8bfe5c9ee46cea175084b49ae8ac95545705b5"; # v0.1.1
+    rev = "f9c27d4d0166021db977d7fc37d205b21d81e9f2"; # v0.3.0
     fetchSubmodules = true;
-    hash = "sha256-5AfkEamTOeJYa451QL1lWYF7W8kqC01Ja/1YVUEdZxY=";
+    hash = "sha256-XnwYlGoYk3ra7hg/ni7Sy5EtSKzil6386OGoXY7j5MI=";
   };
   micro-opus = fetchgit {
     name = "micro-opus";
@@ -149,8 +151,14 @@
   ixwebsocket = fetchFromGitHub {
     owner = "machinezone";
     repo = "IXWebSocket";
-    rev = "v11.4.5";
-    hash = "sha256-j/Fa45es2Oj09ikMZ8rMsSEOXLgO5+H7aqNurOua9LY=";
+    rev = "v12.0.1";
+    hash = "sha256-2QWIpLVIs2vGuMEhewDyihYdDQBz7SsOtfZ6pE67j2Q=";
+  };
+  noise-c = fetchFromGitHub {
+    owner = "esphome-libs";
+    repo = "noise-c";
+    rev = "v0.1.13";
+    hash = "sha256-5bu3Vh+8w4cVuU9n7oc20uhswJgxVtIeHoIzTjAr/Xo=";
   };
 
   # hifiberry-analog-recognition 0.4.2

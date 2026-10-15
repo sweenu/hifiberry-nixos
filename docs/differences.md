@@ -111,6 +111,17 @@ the wrapper scripts from hifiberry-os. It only exists for aarch64 and is marked
 unfree; `nixpkgs.config.allowUnfreePredicate` is set for it when the player is
 enabled.
 
+## Sendspin (Music Assistant)
+
+HiFiBerry's `sendspind` (hifiberry/sendspin) is built against a pre-1.0
+sendspin-cpp commit, so Music Assistant handles it as a legacy client: no
+encryption, legacy state messages, and streams that fall apart after a pause.
+`pkgs/sendspin/sendspin-cpp-0.9.patch` ports the wrapper to sendspin-cpp 0.9.5
+(Sendspin 1.0): a persistent identity (`--state-file`), pairing with a code
+written to the log, unpaired access approved from the server
+(`--unpaired-access on|off`), FLAC and PCM at 48 kHz, a server-adjustable
+output delay, and `--log-level`. The source pins live in `pkgs/sources.nix`.
+
 ## Kiosk mode and local displays
 
 Not provided; the system is meant to be used through the web interface. The

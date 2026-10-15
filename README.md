@@ -65,7 +65,7 @@ hbos-full` is packaged:
 | VU meter, RoomEQ | `hifiberry-vu-meter`, `roomeq` | `pkgs/vu-meter`, `pkgs/roomeq` |
 | MPD 0.24.13 with HiFiBerry's PipeWire patch | `hifiberry-mpd` | `pkgs/mpd` |
 | Roon Ready (RAAT) | `hifiberry-raat` | `pkgs/raat` (binaries from HiFiBerry's repository) |
-| Music Assistant (Sendspin) | `hifiberry-sendspin` | `pkgs/sendspin` |
+| Music Assistant (Sendspin), ported to sendspin-cpp 0.9.5 | `hifiberry-sendspin` | `pkgs/sendspin` |
 | Spotify Connect (librespot 0.8 + HiFiBerry patches) | `hifiberry-librespot` | `pkgs/librespot` |
 | AirPlay 1 and 2 (shairport-sync, nqptp) | `hifiberry-shairport` | `pkgs/shairport` |
 | Squeezebox / LMS (squeezelite) | `hifiberry-squeezelite` | `pkgs/squeezelite` |
@@ -243,6 +243,25 @@ Left `null` (the default), the card is detected as on HiFiBerryOS.
 An enabled player starts on the first boot. After that, the web interface
 turns players on and off. `hifiberry.players.<name>.autoStart = false`
 installs a player without starting it.
+
+#### Music Assistant (Sendspin)
+
+The Sendspin player is HiFiBerry's `sendspind`, ported to sendspin-cpp 0.9.5
+so that it speaks Sendspin 1.0 (encrypted connections, pairing, and the timing
+fields current Music Assistant servers expect). HiFiBerry's own build still
+uses a pre-1.0 client that Music Assistant treats as legacy, which shows up as
+streams that collapse after a pause and volume changes that do nothing.
+
+The first time Music Assistant finds the speaker, the speaker appears there as
+a new, unpaired player. Approve it in Music Assistant, or pair it:
+
+- When the server starts a pairing, the 6-digit code is written to the
+  player's log: `journalctl --user-unit sendspin -f` (as root).
+- The pairing token (`SP:…`) is printed in the same log when the player starts.
+
+The speaker's identity (the `client_id` Music Assistant knows it by) is a key
+pair kept in `~hifiberry/.local/state/sendspind/state.json`. It survives
+renames and updates; delete the file to make the speaker a new device.
 
 Other components, each on by default:
 
