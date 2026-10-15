@@ -147,8 +147,11 @@ in
     # DEFAULT_HOSTNAME makes it "hifiberry" until it is changed.
     networking.hostName = lib.mkDefault "";
     system.nixos.extraOSReleaseArgs.DEFAULT_HOSTNAME = lib.mkDefault "hifiberry";
-    # Names derived from the hostname otherwise (the VM script and its disk).
-    system.name = lib.mkDefault "hifiberry";
+    # The system's name (store paths, the VM script and its disk) follows the
+    # hostname when the configuration sets one, and is "hifiberry" otherwise.
+    system.name = lib.mkDefault (
+      if config.networking.hostName != "" then config.networking.hostName else "hifiberry"
+    );
     # NixOS points hostnamed at the read-only /etc/static copies; with the name
     # unmanaged, let it write the real files.
     systemd.services.systemd-hostnamed.environment = {
