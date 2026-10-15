@@ -143,7 +143,8 @@ in
     # Roon and Sendspin negotiate ports dynamically.
     networking.firewall.enable = lib.mkDefault false;
     networking.networkmanager.enable = lib.mkDefault true;
-    networking.wireless.enable = lib.mkForce false;
+    # NetworkManager runs wpa_supplicant through networking.wireless (in its
+    # D-Bus controlled mode); turning that option off leaves Wi-Fi unable to connect.
 
     services.avahi = {
       enable = true;
