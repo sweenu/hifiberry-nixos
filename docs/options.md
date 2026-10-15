@@ -234,6 +234,196 @@ null or string
 
 
 
+## hifiberry\.kiosk\.enable
+
+
+
+Whether to enable kiosk mode: a full-screen browser on the HDMI output, started at boot,
+showing the web interface’s now-playing page\. SSH and the web interface
+are unaffected\. The browser runs as ` hifiberry.user ` in cage on tty1
+(` services.cage `); set ` services.cage.program ` to run something else
+\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+false
+```
+
+
+
+*Example:*
+
+```nix
+true
+```
+
+*Declared by:*
+ - [modules/kiosk\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/kiosk.nix)
+
+
+
+## hifiberry\.kiosk\.package
+
+
+
+The chromium package to use\.
+
+
+
+*Type:*
+package
+
+
+
+*Default:*
+
+```nix
+pkgs.chromium
+```
+
+*Declared by:*
+ - [modules/kiosk\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/kiosk.nix)
+
+
+
+## hifiberry\.kiosk\.extraArguments
+
+
+
+Additional command line arguments for Chromium\. Chromium reads only
+the last ` --enable-features `, so repeat ` NetworkServiceInProcess2 ` in
+one you add\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+
+```nix
+[ ]
+```
+
+
+
+*Example:*
+
+```nix
+[
+  "--enable-features=NetworkServiceInProcess2,OverlayScrollbar"
+]
+```
+
+*Declared by:*
+ - [modules/kiosk\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/kiosk.nix)
+
+
+
+## hifiberry\.kiosk\.ignoreHdmiInput
+
+
+
+Tell libinput to ignore the HDMI (CEC) input device\. The Raspberry Pi
+reports it as an input device, which otherwise leaves a mouse cursor
+stuck in the middle of the screen when no mouse is plugged in\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+true
+```
+
+*Declared by:*
+ - [modules/kiosk\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/kiosk.nix)
+
+
+
+## hifiberry\.kiosk\.scale
+
+
+
+Zoom factor, applied as the scale of the screen\. A TV often reports a
+wrong physical size, so raise it for large or distant screens: about
+1\.0 for a 24" monitor, 1\.2-1\.3 for a 40-50" TV, 1\.4-1\.5 for a 55-70"
+TV\.
+
+
+
+*Type:*
+positive integer or floating point number, meaning >0
+
+
+
+*Default:*
+
+```nix
+1.3
+```
+
+
+
+*Example:*
+
+```nix
+1.5
+```
+
+*Declared by:*
+ - [modules/kiosk\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/kiosk.nix)
+
+
+
+## hifiberry\.kiosk\.url
+
+
+
+Page to display\. ` ?dark ` forces the dark theme of the now-playing
+pages; leave it out to follow the web interface’s theme\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"http://localhost/now-playing-minimal?dark"
+```
+
+
+
+*Example:*
+
+```nix
+"http://localhost/now-playing"
+```
+
+*Declared by:*
+ - [modules/kiosk\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/kiosk.nix)
+
+
+
 ## hifiberry\.openFirewall
 
 

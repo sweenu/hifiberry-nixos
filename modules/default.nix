@@ -19,6 +19,7 @@
     ./wifi-setup.nix
     ./setup.nix
     ./firewall.nix
+    ./kiosk.nix
   ];
 
   meta.maintainers = [ ];

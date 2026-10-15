@@ -124,9 +124,15 @@ output delay, and `--log-level`. The source pins live in `pkgs/sources.nix`.
 
 ## Kiosk mode and local displays
 
-Not provided; the system is meant to be used through the web interface. The
+HiFiBerryOS' `kiosk-mode.sh` autologins on tty1 and starts cog (WPE WebKit)
+in cage from `~/.bash_profile`. `hifiberry.kiosk` runs cage from NixOS'
+`services.cage` instead (a system service on tty1, restarted if the browser
+exits), with Chromium, since nixpkgs has no WPE WebKit. cog's `--scale` becomes
+the outputs' scale (set with wlr-randr), because Chromium's
+`--force-device-scale-factor` is rounded up on Wayland. The optional udev rule
+from HiFiBerryOS' docs that hides the HDMI input device is on by default. The
 `nowplaying-sdl` package is available for anyone who wants to wire up a
-display themselves.
+display another way.
 
 ## Tailscale and other additions
 

@@ -70,6 +70,7 @@ hbos-full` is packaged:
 | AirPlay 1 and 2 (shairport-sync, nqptp) | `hifiberry-shairport` | `pkgs/shairport` |
 | Squeezebox / LMS (squeezelite) | `hifiberry-squeezelite` | `pkgs/squeezelite` |
 | Analog input with track recognition, AES67, USB audio gadget, analog pass-through | `hifiberry-analog-recognition`, `hifiberry-aes67`, `hifiberry-usbaudio`, `hifiberry-analoginput` | `pkgs/…`, off by default |
+| Kiosk mode: the now-playing page full screen on the HDMI output | `kiosk-mode/kiosk-mode.sh` | `modules/kiosk.nix`, off by default |
 | MCP server, SDL now-playing display | `hifiberry-acr-webmcp`, `nowplaying-sdl` | `modules/webmcp.nix`, `pkgs/nowplaying-sdl` (package only) |
 
 ## Getting started
@@ -293,6 +294,32 @@ hifiberry.setup = {
 - **A declared `systemName`** fixes the device name: the web interface can no
   longer change it.
 - **A declared password and protection** are applied on every boot.
+
+### Kiosk mode
+
+A screen on the HDMI output can show the now-playing page full screen, as
+HiFiBerryOS' `kiosk-mode.sh` sets up:
+
+```nix
+hifiberry.kiosk = {
+  enable = true;
+  scale = 1.3;  # zoom: ~1.0 for a 24" monitor, 1.2-1.3 for a 40-50" TV, 1.4-1.5 above
+  # url = "http://localhost/now-playing-minimal?dark";  # the default
+};
+```
+
+- **What runs:** Chromium in kiosk mode inside cage (a Wayland kiosk
+  compositor) on tty1, as the player user, through NixOS' `services.cage`.
+  HiFiBerryOS uses cog (WPE WebKit) instead, which nixpkgs does not package.
+  Chromium needs more memory, so plan on a Pi with at least 1 GB.
+- **Until the setup wizard is done** the page sends you to the wizard, as on
+  HiFiBerryOS. Finish it from another device, or declare the setup and skip it.
+- **A stuck cursor** in the middle of the screen comes from the HDMI (CEC)
+  input device; it is ignored by default (`hifiberry.kiosk.ignoreHdmiInput`).
+- **Another browser or page:** `hifiberry.kiosk.package` and
+  `hifiberry.kiosk.extraArguments` change the Chromium invocation, and
+  `services.cage.program` replaces it entirely.
+- **Logs:** `journalctl -u cage-tty1`.
 
 ### Networking, SSH and the firewall
 
