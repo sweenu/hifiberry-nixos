@@ -9,7 +9,7 @@
 let
   cfg = config.hifiberry;
   hb = cfg.packages;
-  configurator = hb.configurator;
+  inherit (hb) configurator;
 
   toolPath = [
     configurator

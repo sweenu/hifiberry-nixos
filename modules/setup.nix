@@ -8,7 +8,7 @@
 }:
 let
   cfg = config.hifiberry;
-  setup = cfg.setup;
+  inherit (cfg) setup;
   auth = setup.webAuth;
   hb = cfg.packages;
 

@@ -1,0 +1,21 @@
+# statix configuration, used by `lint` and the pre-commit hook. Both lints
+# below disagree with how NixOS modules are conventionally written, and fixing
+# them would make this code worse rather than better.
+
+# repeated_keys wants every assignment sharing a prefix merged into one nested
+# attribute set (`systemd = { tmpfiles.rules = …; services.foo = …; }`). NixOS
+# modules are written the other way round, one flat `systemd.services.foo = …`
+# per concern, so the lint fires on almost every module here.
+
+# empty_pattern wants `{ ... }:` with no used arguments written as `_:`. The
+# template is a starting point people edit, and nixfmt then glues it into
+# `_: {`; `{ ... }:` is the header every NixOS configuration starts from.
+disabled = [
+  "repeated_keys",
+  "empty_pattern",
+]
+
+ignore = [
+  ".devenv",
+  ".direnv",
+]

@@ -25,7 +25,7 @@ in
           name = "Music Assistant";
           icon = "/images/svg/sendspin.svg";
           description = "Sendspin player for HiFiBerryOS";
-          version = sendspin.version;
+          inherit (sendspin) version;
         })
       ];
     };

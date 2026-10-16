@@ -32,7 +32,7 @@ in
 
     users.users.${cfg.user} = {
       isNormalUser = true;
-      uid = cfg.uid;
+      inherit (cfg) uid;
       # A primary group with the same number as the user, as on Raspberry Pi
       # OS: the configurator runs `systemd-run --uid N --gid N` to manage the
       # player's services and fails if group N does not exist.

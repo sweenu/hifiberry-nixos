@@ -2,7 +2,7 @@
 { config, lib, ... }:
 let
   cfg = config.hifiberry;
-  players = cfg.players;
+  inherit (cfg) players;
   # These negotiate ports at runtime (AirPlay 2 streams, the Spotify Connect
   # zeroconf endpoint, Roon's RAAT, Squeezelite's discovery replies, AES67).
   dynamicPorts = lib.any (name: players.${name}.enable) [
