@@ -34,6 +34,12 @@ installed, and the configurator toggles players the same way. On NixOS
   `systemctl --user enable/disable` as the player user instead of
   `systemctl --global`, so the switches in the web interface keep working and
   the state persists across reboots and rebuilds.
+- Enabling a unit by absolute path links it into `~/.config/systemd/user` by
+  its store path, and the user manager searches that before
+  `/etc/systemd/user`. The player would then stay on the generation it was
+  enabled from, with later updates installed but never running. An activation
+  script re-points such links at `/etc/systemd/user` on every switch, leaving
+  the enabled/disabled state alone.
 
 ## Extensions
 

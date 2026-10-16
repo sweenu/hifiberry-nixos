@@ -109,6 +109,41 @@ in
       '';
     };
 
+    # `systemctl --user enable` with an absolute path (what the web interface
+    # does when it toggles a player) links the unit by its store path into
+    # ~/.config/systemd/user, which the user manager searches before
+    # /etc/systemd/user. The player then stays on the generation it was enabled
+    # from and no later update reaches it. Re-point those links on every
+    # activation, leaving the enabled/disabled state alone.
+    system.activationScripts.hifiberry-unpin-user-units = {
+      deps = [ "users" ];
+      text = ''
+        (
+          home=$(${pkgs.getent}/bin/getent passwd ${cfg.user} | cut -d: -f6)
+          userdir="$home/.config/systemd/user"
+          [ -d "$userdir" ] || exit 0
+          for link in "$userdir"/*.service "$userdir"/default.target.wants/*.service; do
+            [ -L "$link" ] || continue
+            case "$(readlink "$link")" in
+              /nix/store/*) ;;
+              *) continue ;;
+            esac
+            svc=$(basename "$link")
+            [ -e "/etc/systemd/user/$svc" ] || continue
+            case "$link" in
+              */default.target.wants/*)
+                ln -sfn "/etc/systemd/user/$svc" "$link"
+                chown -h ${cfg.user}:${cfg.user} "$link"
+                ;;
+              # A top-level link only shadows /etc; the wants link above is
+              # what keeps the service enabled, so dropping it is safe.
+              *) rm -f "$link" ;;
+            esac
+          done
+        ) || true
+      '';
+    };
+
     # The system UUID, as hifiberry-configurator's create-uuid.service.
     systemd.services.create-uuid = {
       description = "Create system UUID file";
