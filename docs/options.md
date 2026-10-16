@@ -892,6 +892,43 @@ config.hifiberry.players.sendspin.enable
 
 
 
+## hifiberry\.players\.sendspin\.protocol
+
+
+
+Which Sendspin protocol the player speaks\.
+
+` legacy ` is the pre-1\.0 sendspin-cpp that HiFiBerry’s own
+hifiberry-sendspin pins, and is what every released Music Assistant
+talks to\. Those servers treat it as a legacy client: playback works,
+but the stream is torn down on pause and can collapse shortly after
+resuming, and volume changes may not reach the speaker\.
+
+` v1 ` builds sendspin-cpp 0\.9, which speaks Sendspin 1\.0: encrypted
+connections, a persistent client identity and pairing, and the timing
+fields that fix the behaviour above\. It needs a server on
+aiosendspin 10 or newer — Music Assistant 2\.11 or later\. Against an
+older server the Noise handshake fails and the player never connects,
+so this stays off until your server is new enough\.
+
+
+
+*Type:*
+one of “legacy”, “v1”
+
+
+
+*Default:*
+
+```nix
+"legacy"
+```
+
+*Declared by:*
+ - [modules/players/default\.nix](https://github.com/sweenu/hifiberry-nixos/blob/main/modules/players/default.nix)
+
+
+
 ## hifiberry\.players\.shairport\.enable
 
 

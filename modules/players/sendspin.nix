@@ -9,13 +9,15 @@ let
   cfg = config.hifiberry;
   p = cfg.players.sendspin;
   hb = cfg.packages;
+  # hifiberry.players.sendspin.protocol picks which sendspin-cpp is built.
+  sendspin = if p.protocol == "v1" then hb.sendspin-v1 else hb.sendspin;
 in
 {
   config = lib.mkIf (cfg.enable && p.enable) {
     hifiberry.internal = {
-      acrPlayers."sendspin.json" = "${hb.sendspin}/etc/audiocontrol/players.d/sendspin.json";
-      configserverConfD."sendspin.json" = "${hb.sendspin}/etc/configserver/conf.d/sendspin.json";
-      sharePackages = [ hb.sendspin ];
+      acrPlayers."sendspin.json" = "${sendspin}/etc/audiocontrol/players.d/sendspin.json";
+      configserverConfD."sendspin.json" = "${sendspin}/etc/configserver/conf.d/sendspin.json";
+      sharePackages = [ sendspin ];
       defaultEnabledUserServices = lib.optional p.autoStart "sendspin";
       extensions = [
         (hifiberryLib.mkExtensionRecord {
@@ -23,12 +25,12 @@ in
           name = "Music Assistant";
           icon = "/images/svg/sendspin.svg";
           description = "Sendspin player for HiFiBerryOS";
-          version = hb.sendspin.version;
+          version = sendspin.version;
         })
       ];
     };
 
-    environment.systemPackages = [ hb.sendspin ];
+    environment.systemPackages = [ sendspin ];
 
     systemd.user.units."sendspin.service".text = hifiberryLib.mkPlayerUnit {
       description = "Sendspin Player (Music Assistant)";
@@ -47,7 +49,7 @@ in
           config-soundcard --detected >/dev/null 2>&1 && break
           sleep 3
         done
-        exec ${hb.sendspin}/bin/start-sendspin "$@"
+        exec ${sendspin}/bin/start-sendspin "$@"
       ''}";
       wants = [ "avahi-daemon.service" ];
       restartSec = 2;

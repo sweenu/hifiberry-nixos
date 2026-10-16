@@ -266,6 +266,17 @@ in
     # does not fill the card.
     documentation.enable = lib.mkDefault false;
     documentation.nixos.enable = lib.mkDefault false;
+
+    # An SD card wears out by being written to, and a player logs steadily for
+    # years. Keep the journal in RAM, capped so it cannot crowd out a 512 MB
+    # Pi: `journalctl` still works, it just starts empty after a reboot. Set
+    # services.journald.storage = "persistent" to keep logs across reboots,
+    # which is worth doing while chasing a boot-time problem.
+    services.journald.storage = lib.mkDefault "volatile";
+    services.journald.extraConfig = lib.mkDefault ''
+      RuntimeMaxUse=32M
+      RuntimeMaxFileSize=8M
+    '';
     nix.gc = {
       automatic = lib.mkDefault true;
       dates = lib.mkDefault "weekly";

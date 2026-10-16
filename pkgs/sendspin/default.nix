@@ -11,20 +11,32 @@
   nlohmann_json,
   avahi-compat,
   sources,
+  # "legacy" builds the pre-1.0 sendspin-cpp hifiberry-sendspin pins, which is
+  # what released Music Assistant speaks. "v1" builds sendspin-cpp 0.9 and the
+  # Sendspin 1.0 protocol. See hifiberry.players.sendspin.protocol.
+  sendspinProtocol ? "legacy",
 }:
 
+let
+  v1 = sendspinProtocol == "v1";
+  pick = attrs: attrs.${sendspinProtocol};
+in
+assert lib.assertOneOf "sendspinProtocol" sendspinProtocol [
+  "legacy"
+  "v1"
+];
+
 stdenv.mkDerivation {
-  pname = "hifiberry-sendspin";
+  pname = "hifiberry-sendspin" + lib.optionalString v1 "-v1";
   version = "0.1.7";
 
   src = sources.sendspin;
 
-  # Port to sendspin-cpp 0.9 and the Sendspin 1.0 protocol, which Music Assistant
-  # expects (hifiberry-sendspin still pins a pre-1.0 commit): the client's
+  # Port to sendspin-cpp 0.9 and the Sendspin 1.0 protocol: the client's
   # identity and pairing records persist (--state-file), unpaired access for
   # servers the operator approved (--unpaired-access, on by default), pairing
   # codes and tokens in the log, and the server can adjust the output delay.
-  patches = [ ./sendspin-cpp-0.9.patch ];
+  patches = lib.optional v1 ./sendspin-cpp-0.9.patch;
 
   nativeBuildInputs = [
     cmake
@@ -44,20 +56,22 @@ stdenv.mkDerivation {
   preConfigure = ''
     deps=$NIX_BUILD_TOP/deps
     mkdir -p $deps
-    cp -r --no-preserve=mode,ownership ${sources.sendspin-cpp} $deps/sendspin
+    cp -r --no-preserve=mode,ownership ${pick sources.sendspin-cpp} $deps/sendspin
     cp -r --no-preserve=mode,ownership ${sources.arduinojson} $deps/arduinojson
-    cp -r --no-preserve=mode,ownership ${sources.micro-flac} $deps/micro_flac
+    cp -r --no-preserve=mode,ownership ${pick sources.micro-flac} $deps/micro_flac
     cp -r --no-preserve=mode,ownership ${sources.micro-opus} $deps/micro_opus
-    cp -r --no-preserve=mode,ownership ${sources.ixwebsocket} $deps/ixwebsocket
-    cp -r --no-preserve=mode,ownership ${sources.noise-c} $deps/noise_c
+    cp -r --no-preserve=mode,ownership ${pick sources.ixwebsocket} $deps/ixwebsocket
     cmakeFlagsArray+=(
       "-DFETCHCONTENT_SOURCE_DIR_SENDSPIN=$deps/sendspin"
       "-DFETCHCONTENT_SOURCE_DIR_ARDUINOJSON=$deps/arduinojson"
       "-DFETCHCONTENT_SOURCE_DIR_MICRO_FLAC=$deps/micro_flac"
       "-DFETCHCONTENT_SOURCE_DIR_MICRO_OPUS=$deps/micro_opus"
       "-DFETCHCONTENT_SOURCE_DIR_IXWEBSOCKET=$deps/ixwebsocket"
-      "-DFETCHCONTENT_SOURCE_DIR_NOISE_C=$deps/noise_c"
     )
+  ''
+  + lib.optionalString v1 ''
+    cp -r --no-preserve=mode,ownership ${sources.noise-c} $deps/noise_c
+    cmakeFlagsArray+=( "-DFETCHCONTENT_SOURCE_DIR_NOISE_C=$deps/noise_c" )
   '';
 
   doCheck = true;

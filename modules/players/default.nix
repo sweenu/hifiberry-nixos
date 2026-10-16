@@ -62,11 +62,37 @@ in
       name = "squeezelite";
       description = "Squeezebox/Lyrion Music Server client (squeezelite)";
     };
-    sendspin = playerOpts {
-      name = "sendspin";
-      description = "Music Assistant (Sendspin)";
-      default = true;
-    };
+    sendspin =
+      playerOpts {
+        name = "sendspin";
+        description = "Music Assistant (Sendspin)";
+        default = true;
+      }
+      // {
+        protocol = lib.mkOption {
+          type = lib.types.enum [
+            "legacy"
+            "v1"
+          ];
+          default = "legacy";
+          description = ''
+            Which Sendspin protocol the player speaks.
+
+            `legacy` is the pre-1.0 sendspin-cpp that HiFiBerry's own
+            hifiberry-sendspin pins, and is what every released Music Assistant
+            talks to. Those servers treat it as a legacy client: playback works,
+            but the stream is torn down on pause and can collapse shortly after
+            resuming, and volume changes may not reach the speaker.
+
+            `v1` builds sendspin-cpp 0.9, which speaks Sendspin 1.0: encrypted
+            connections, a persistent client identity and pairing, and the timing
+            fields that fix the behaviour above. It needs a server on
+            aiosendspin 10 or newer — Music Assistant 2.11 or later. Against an
+            older server the Noise handshake fails and the player never connects,
+            so this stays off until your server is new enough.
+          '';
+        };
+      };
     raat = playerOpts {
       name = "raat";
       description = "Roon Ready (RAAT)";

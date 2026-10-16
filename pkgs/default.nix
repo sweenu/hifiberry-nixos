@@ -29,6 +29,7 @@ lib.makeScope pkgs.newScope (self: {
 
   # Players published as extensions
   sendspin = self.callPackage ./sendspin { };
+  sendspin-v1 = self.callPackage ./sendspin { sendspinProtocol = "v1"; };
   librespot = self.callPackage ./librespot { inherit (pkgs) librespot; };
   shairport = self.callPackage ./shairport { };
   squeezelite = self.callPackage ./squeezelite { inherit (pkgs) squeezelite; };

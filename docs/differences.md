@@ -119,14 +119,30 @@ enabled.
 
 ## Sendspin (Music Assistant)
 
-HiFiBerry's `sendspind` (hifiberry/sendspin) is built against a pre-1.0
+HiFiBerry's `sendspind` (hifiberry/sendspin) builds against a pre-1.0
 sendspin-cpp commit, so Music Assistant handles it as a legacy client: no
 encryption, legacy state messages, and streams that fall apart after a pause.
-`pkgs/sendspin/sendspin-cpp-0.9.patch` ports the wrapper to sendspin-cpp 0.9.5
-(Sendspin 1.0): a persistent identity (`--state-file`), pairing with a code
-written to the log, unpaired access approved from the server
-(`--unpaired-access on|off`), FLAC and PCM at 48 kHz, a server-adjustable
-output delay, and `--log-level`. The source pins live in `pkgs/sources.nix`.
+`hifiberry.players.sendspin.protocol` picks which sendspin-cpp is built.
+`legacy` is HiFiBerry's pin, kept as the default because it is what every
+released Music Assistant speaks. `v1` applies
+`pkgs/sendspin/sendspin-cpp-0.9.patch`, which ports the wrapper to
+sendspin-cpp 0.9 (Sendspin 1.0): a persistent identity (`--state-file`),
+pairing with a code written to the log, unpaired access approved from the
+server (`--unpaired-access on|off`), FLAC and PCM at 48 kHz, a
+server-adjustable output delay, and `--log-level`. Each protocol has its own
+source pins in `pkgs/sources.nix`, since 0.9 also needs newer micro-flac and
+IXWebSocket releases and adds noise-c.
+
+A `v1` client refuses a server whose handshake omits `psk_category`, which
+aiosendspin added for Sendspin 1.0; servers older than aiosendspin 10 (Music
+Assistant 2.10 and earlier) are rejected outright rather than degraded.
+
+## Logging
+
+HiFiBerryOS logs to the SD card. An appliance that runs for years wears the
+card out that way, so `services.journald.storage` defaults to `volatile`: the
+journal lives in RAM, capped at 32 MB, and starts empty after a reboot.
+Set it to `persistent` to keep logs across reboots.
 
 ## Kiosk mode and local displays
 

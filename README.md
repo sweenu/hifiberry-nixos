@@ -65,7 +65,7 @@ hbos-full` is packaged:
 | VU meter, RoomEQ | `hifiberry-vu-meter`, `roomeq` | `pkgs/vu-meter`, `pkgs/roomeq` |
 | MPD 0.24.13 with HiFiBerry's PipeWire patch | `hifiberry-mpd` | `pkgs/mpd` |
 | Roon Ready (RAAT) | `hifiberry-raat` | `pkgs/raat` (binaries from HiFiBerry's repository) |
-| Music Assistant (Sendspin), ported to sendspin-cpp 0.9.5 | `hifiberry-sendspin` | `pkgs/sendspin` |
+| Music Assistant (Sendspin), optionally on sendspin-cpp 0.9 | `hifiberry-sendspin` | `pkgs/sendspin` |
 | Spotify Connect (librespot 0.8 + HiFiBerry patches) | `hifiberry-librespot` | `pkgs/librespot` |
 | AirPlay 1 and 2 (shairport-sync, nqptp) | `hifiberry-shairport` | `pkgs/shairport` |
 | Squeezebox / LMS (squeezelite) | `hifiberry-squeezelite` | `pkgs/squeezelite` |
@@ -247,22 +247,35 @@ installs a player without starting it.
 
 #### Music Assistant (Sendspin)
 
-The Sendspin player is HiFiBerry's `sendspind`, ported to sendspin-cpp 0.9.5
-so that it speaks Sendspin 1.0 (encrypted connections, pairing, and the timing
-fields current Music Assistant servers expect). HiFiBerry's own build still
-uses a pre-1.0 client that Music Assistant treats as legacy, which shows up as
-streams that collapse after a pause and volume changes that do nothing.
+The Sendspin player is HiFiBerry's `sendspind`. Which protocol it speaks is an
+option, because the right answer depends on your Music Assistant version:
 
-The first time Music Assistant finds the speaker, the speaker appears there as
-a new, unpaired player. Approve it in Music Assistant, or pair it:
+```nix
+hifiberry.players.sendspin.protocol = "legacy";  # the default
+```
+
+- **`legacy`** builds the pre-1.0 sendspin-cpp that HiFiBerry pins, and works
+  with every released Music Assistant. Those servers handle it as a legacy
+  client: playback works, but the stream is torn down on pause and can
+  collapse shortly after resuming, and volume changes may not reach the
+  speaker.
+- **`v1`** builds sendspin-cpp 0.9, which speaks Sendspin 1.0 — encrypted
+  connections, a persistent identity and pairing, and the timing fields that
+  fix the behaviour above. It needs a server on aiosendspin 10 or newer, which
+  means **Music Assistant 2.11 or later**. Against an older server the Noise
+  handshake fails and the player never connects at all, so leave it on
+  `legacy` until your server is new enough.
+
+With `v1`, the speaker appears in Music Assistant as a new, unpaired player the
+first time it is found. Approve it there, or pair it:
 
 - When the server starts a pairing, the 6-digit code is written to the
   player's log: `journalctl --user-unit sendspin -f` (as root).
 - The pairing token (`SP:…`) is printed in the same log when the player starts.
 
-The speaker's identity (the `client_id` Music Assistant knows it by) is a key
-pair kept in `~hifiberry/.local/state/sendspind/state.json`. It survives
-renames and updates; delete the file to make the speaker a new device.
+Its identity (the `client_id` Music Assistant knows it by) is a key pair kept
+in `~hifiberry/.local/state/sendspind/state.json`. It survives renames and
+updates; delete the file to make the speaker a new device.
 
 Other components, each on by default:
 
