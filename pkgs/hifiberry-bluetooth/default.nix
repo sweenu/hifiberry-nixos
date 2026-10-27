@@ -15,6 +15,10 @@ python3Packages.buildPythonApplication {
 
   build-system = [ python3Packages.setuptools ];
 
+  # The agent never marks a "just works" pairing trusted, and its
+  # RequestAuthorization prompts on a stdin that is /dev/null.
+  patches = [ ./trust-on-pairing.patch ];
+
   postPatch = ''
     # requirements.txt names "gobject"/"dbus-python" as pip distributions;
     # the real dependencies are provided below.

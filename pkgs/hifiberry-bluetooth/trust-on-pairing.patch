@@ -1,0 +1,35 @@
+diff --git a/hifiberry_bluetooth/Agent.py b/hifiberry_bluetooth/Agent.py
+--- a/hifiberry_bluetooth/Agent.py
++++ b/hifiberry_bluetooth/Agent.py
+@@ -213,10 +213,15 @@
+     @dbus.service.method(AGENT_IFACE, in_signature="o", out_signature="")
+     def RequestAuthorization(self, device):
+         print("RequestAuthorization (%s)" % (device))
+-        auth = input("Authorize? (yes/no): ")
+-        if (auth == "yes"):
+-            return
+-        raise Rejected("Pairing rejected")
++        # This is the path a "just works" pairing takes, which is every phone
++        # and laptop given our NoInputNoOutput capability. There is no console
++        # to prompt on: the agent runs as a system service with stdin at
++        # /dev/null, so input() raised EOFError and rejected the pairing. A
++        # speaker that is discoverable and pairable has already granted its
++        # consent, so accept, and trust the device as the passkey and
++        # confirmation paths do.
++        self.set_trusted(device)
++        return
+ 
+     """
+     This method gets called when **bluetoothd** needs to authorize a
+@@ -233,6 +238,11 @@
+     @dbus.service.method(AGENT_IFACE, in_signature="os", out_signature="")
+     def AuthorizeService(self, device, uuid):
+         print(f"AuthorizeService ({device}, {uuid})")
++        # Every service of every connection comes through here, and the answer
++        # is always yes, so bluetoothd is asking a question with one answer.
++        # Trusting the device makes it stop asking, and leaves a device paired
++        # before this ran no longer dependent on the agent being up.
++        self.set_trusted(device)
+         return
+ 
+     """

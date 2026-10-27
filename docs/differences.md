@@ -137,6 +137,32 @@ A `v1` client refuses a server whose handshake omits `psk_category`, which
 aiosendspin added for Sendspin 1.0; servers older than aiosendspin 10 (Music
 Assistant 2.10 and earlier) are rejected outright rather than degraded.
 
+## Bluetooth pairing is trusted
+
+`org.bluez.Device1.Trusted` is what stops bluetoothd consulting the pairing
+agent on every reconnect. BlueZ has no option to set it: there is no key for it
+in `main.conf`, nothing in `bluetoothd(8)`, and the property is per device,
+persisted in `/var/lib/bluetooth/<adapter>/<device>/info`. Setting it is the
+agent's job, and `hbos-bluetooth`'s agent does so from `RequestPasskey` and
+`RequestConfirmation` -- but it registers with the `NoInputNoOutput`
+capability, so a phone or a laptop pairs "just works" and reaches neither.
+
+That pairing lands in `RequestAuthorization`, which upstream answers with
+`input("Authorize? (yes/no): ")`. The agent is a system service with stdin at
+`/dev/null`, so `input()` raises `EOFError`; the branch it would have taken
+otherwise raises `Rejected`, a name the package never defines. Both outcomes
+reject the pairing, and neither sets `Trusted`.
+
+`pkgs/hifiberry-bluetooth/trust-on-pairing.patch` makes
+`RequestAuthorization` accept and trust the device, the way the passkey and
+confirmation paths already do -- a speaker that is discoverable and pairable
+has given its consent, and there is no console to ask on. It also trusts from
+`AuthorizeService`, which bluetoothd calls for every service of every
+connection and which upstream always answers yes to: trusting there makes
+bluetoothd stop asking, and it picks up a device that was paired before the
+patch. Without it such a device keeps working only while the agent is running,
+since nothing else would answer.
+
 ## Bluetooth class of device
 
 A paired phone shows a speaker icon only if the adapter reports a class of
