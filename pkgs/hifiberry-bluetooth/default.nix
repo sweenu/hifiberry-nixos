@@ -30,7 +30,8 @@ python3Packages.buildPythonApplication {
 
   postInstall = ''
     install -Dm644 debian/bluetooth.json $out/etc/audiocontrol/players.d/bluetooth.json
-    install -Dm644 debian/hifiberry-btaudio.nginx $out/share/hifiberry-bluetooth/nginx/hifiberry-btaudio.nginx
+    # debian/hifiberry-btaudio.nginx is not installed: it proxies to
+    # localhost:1082, which nothing in this package listens on.
     install -Dm644 man/hifiberry-bluetooth.1 $out/share/man/man1/hifiberry-bluetooth.1
     rm -rf "''${out:?}/usr"
   '';

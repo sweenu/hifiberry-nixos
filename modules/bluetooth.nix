@@ -1,5 +1,5 @@
 # Bluetooth audio: BlueZ, the WirePlumber bluez monitor in the headless
-# session, and hifiberry-bluetooth (pairing agent, API on 1082).
+# session, and hifiberry-bluetooth (the pairing agent).
 {
   config,
   lib,
@@ -18,9 +18,9 @@ in
     };
 
     hifiberry.internal = {
-      nginxSnippets = [
-        "${hb.hifiberry-bluetooth}/share/hifiberry-bluetooth/nginx/hifiberry-btaudio.nginx"
-      ];
+      # No btaudio nginx snippet: it proxies /api/btaudio/ and /btaudio/ to
+      # localhost:1082, but hifiberry-bluetooth is only a D-Bus agent and
+      # serves nothing. The web interface never calls either location.
       acrPlayers."bluetooth.json" = "${hb.hifiberry-bluetooth}/etc/audiocontrol/players.d/bluetooth.json";
       configserverConfD."hifiberry-bluetooth.json" = pkgs.writeText "hifiberry-bluetooth.json" (
         builtins.toJSON { systemd.hifiberry-bluetooth = "all"; }
