@@ -41,5 +41,26 @@ in
         User = "root";
       };
     };
+
+    # BlueZ 5 dropped main.conf's Class option and derives the class of device
+    # from the chassis type hostnamed reports instead. A Raspberry Pi has no
+    # DMI chassis, so the major class stays 0 ("Miscellaneous") and phones show
+    # a generic icon when pairing; no chassis value maps to a speaker either.
+    # Set Audio/Video (4) and Loudspeaker (20, the minor class already shifted
+    # into bits 2-7) over mgmt, which btmgmt reads as decimal. The kernel keeps
+    # the service class bits it derives from the registered profiles. The class
+    # resets whenever bluetoothd restarts, hence PartOf.
+    systemd.services.hifiberry-bluetooth-class = {
+      description = "Announce the Bluetooth adapter as a loudspeaker";
+      wantedBy = [ "multi-user.target" ];
+      requires = [ "bluetooth.service" ];
+      after = [ "bluetooth.service" ];
+      partOf = [ "bluetooth.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = "${config.hardware.bluetooth.package}/bin/btmgmt class 4 20";
+      };
+    };
   };
 }

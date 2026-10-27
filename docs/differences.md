@@ -137,6 +137,26 @@ A `v1` client refuses a server whose handshake omits `psk_category`, which
 aiosendspin added for Sendspin 1.0; servers older than aiosendspin 10 (Music
 Assistant 2.10 and earlier) are rejected outright rather than degraded.
 
+## Bluetooth class of device
+
+A paired phone shows a speaker icon only if the adapter reports a class of
+device with the Audio/Video major class. BlueZ 4 took that number from
+`main.conf`'s `Class`; BlueZ 5 removed the option and its hostname plugin
+derives the class from the `Chassis` property hostnamed exposes. A Raspberry Pi
+has no DMI chassis type, so the chassis is empty and the major class stays 0,
+which is "Miscellaneous" -- and none of the values the plugin does recognise
+(`desktop`, `server`, `laptop`, `handset`, `tablet`, `watch`) is a speaker, so
+there is nothing to set it to either.
+
+`hifiberry-bluetooth-class.service` therefore sets the major and minor class
+over the management socket, with `btmgmt class 4 20`: major 4 is Audio/Video
+and 20 is Loudspeaker, the minor class already shifted into bits 2-7. Both
+numbers are decimal -- `btmgmt` parses `0x04` as 0 and silently leaves the
+class alone. The kernel keeps the service class bits it derives from the
+registered profiles, so the adapter ends up at `0x6c0414` rather than the bare
+`0x200414`. bluetoothd resets the class when it restarts, so the unit is
+`PartOf=bluetooth.service`.
+
 ## Logging
 
 HiFiBerryOS logs to the SD card. An appliance that runs for years wears the
