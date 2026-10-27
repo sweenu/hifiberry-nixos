@@ -79,6 +79,13 @@ system builds, not that it works on hardware.
   legacy pre-1.0 client. Bumping sendspin-cpp means regenerating the patch
   against the new API. Check protocol compliance against aiosendspin's server
   with `allow_unencrypted=False, allow_noncompliant_clients=False`.
+  `pkgs/sendspin/perceptual-volume.patch` applies to both protocol versions and
+  maps the volume through the curve the player spec names
+  (`amplitude = (volume/100)^1.5`) instead of onto the mixer's raw range
+  (`docs/differences.md`); it touches `src/volume_scale.*` and
+  `src/volume_control.*`, so bumping `sources.sendspin` means checking both.
+  Note this curve is deliberately not audiocontrol's `perceptual` scale, which
+  is twice as steep in decibels: the Sendspin number follows the Sendspin spec.
 - **Kiosk** (`modules/kiosk.nix`): Chromium in cage, since nixpkgs has no WPE
   WebKit (HiFiBerryOS uses cog). The comments there explain each flag; most
   of them fix a failure seen in testing, so don't drop one without retesting.

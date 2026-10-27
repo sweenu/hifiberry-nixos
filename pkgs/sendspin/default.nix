@@ -32,11 +32,17 @@ stdenv.mkDerivation {
 
   src = sources.sendspin;
 
+  patches = [
+    # Map the wire volume through decibels on a cube-root loudness curve
+    # instead of linearly onto the mixer's raw range. Both protocol versions
+    # need it; see docs/differences.md.
+    ./perceptual-volume.patch
+  ]
   # Port to sendspin-cpp 0.9 and the Sendspin 1.0 protocol: the client's
   # identity and pairing records persist (--state-file), unpaired access for
   # servers the operator approved (--unpaired-access, on by default), pairing
   # codes and tokens in the log, and the server can adjust the output delay.
-  patches = lib.optional v1 ./sendspin-cpp-0.9.patch;
+  ++ lib.optional v1 ./sendspin-cpp-0.9.patch;
 
   nativeBuildInputs = [
     cmake

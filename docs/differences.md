@@ -137,6 +137,50 @@ A `v1` client refuses a server whose handshake omits `psk_category`, which
 aiosendspin added for Sendspin 1.0; servers older than aiosendspin 10 (Music
 Assistant 2.10 and earlier) are rejected outright rather than degraded.
 
+## Sendspin volume follows the player spec's curve
+
+`sendspind` drives the sound card's ALSA mixer itself; a volume set in Music
+Assistant never passes through audiocontrol, and Music Assistant applies no
+curve of its own to a Sendspin player. The Sendspin player spec
+(`roles/player/v1.md`) is normative about what the number means:
+
+> Volume values (0-100) represent perceived loudness, not linear amplitude
+> (e.g., volume 50 should be perceived as half as loud as volume 100). Clients
+> SHOULD convert volume to a linear amplitude (the gain applied to samples,
+> where 1.0 is full scale and 0 is silent) as `amplitude = (volume / 100)^1.5`.
+
+Upstream's `volume_scale.cpp` instead interpolates the volume onto the mixer
+control's raw range, which is a ladder of equal decibel steps: on the PCM512x
+"Digital" control of a DAC+ or Amp2 it is 207 steps of 0.5 dB spanning
+-103.5 dB to 0 dB, so volume 70 lands on -31 dB where the spec asks for
+-4.65 dB. In a group with any conformant client that is a 26 dB mismatch, and
+below volume 70 the output is inaudible.
+
+`pkgs/sendspin/perceptual-volume.patch` converts the volume to decibels
+(`30*log10(volume/100)` below full scale, the dB-domain form of the spec's
+curve) and sets the control by decibels. Full scale means unity, not the
+control's maximum, so a control that can boost above 0 dB stays at 0 dB for
+volume 100 rather than playing louder than its peers; a control whose maximum
+is below unity references its own maximum. The range comes from
+`snd_mixer_selem_get_playback_dB_range`, probing upwards past a bottom step
+flagged as a hard mute. A control that reports no usable range keeps the raw
+mapping and says so on stderr. Volume 0 still goes to the bottom of the raw
+range, so a real mute step stays reachable, and a level the control cannot
+reach clamps to its floor. Both protocol versions get the patch.
+
+The spec also asks for a short ramp on a volume change, to avoid clicks. This
+does not implement one: the level is a hardware mixer register, and the PCM512x
+applies its own soft ramp.
+
+Two consequences worth knowing. Music Assistant stores a volume per player, so
+the level it remembers moves once when this first takes effect. And the number
+no longer matches audiocontrol's: the web interface uses audiocontrol's
+`perceptual` scale, a cube-root curve (`10^(dB/60)`, what `alsamixer -M` and
+PulseAudio use), which is twice as steep in decibels as the spec's. The two
+controllers therefore disagree about what "70" means, by design -- Music
+Assistant follows the protocol it speaks, so that a multi-room group is
+loudness-matched.
+
 ## Bluetooth pairing is trusted
 
 `org.bluez.Device1.Trusted` is what stops bluetoothd consulting the pairing

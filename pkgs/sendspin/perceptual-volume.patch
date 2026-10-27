@@ -1,0 +1,306 @@
+diff --git a/src/volume_control.cpp b/src/volume_control.cpp
+index b862add..2b2b707 100644
+--- a/src/volume_control.cpp
++++ b/src/volume_control.cpp
+@@ -1,9 +1,17 @@
+ // src/volume_control.cpp
+ #include "volume_control.h"
+ #include "volume_scale.h"
++#include <algorithm>
+ #include <cstdio>
+ #include <utility>
+ 
++// ALSA reports SND_CTL_TLV_DB_GAIN_MUTE (-9999999) for a step that is a
++// hard mute rather than a level; anything this low is that sentinel.
++static constexpr long DB_SENTINEL_FLOOR_MDB = -20000;
++// How far above the bottom of the raw range to look for the quietest step
++// that carries a real decibel value.
++static constexpr long MUTE_PROBE_STEPS = 16;
++
+ VolumeControl::VolumeControl(std::string device, std::string control)
+     : device_(std::move(device)), control_(std::move(control)) {}
+ 
+@@ -34,14 +42,65 @@ bool VolumeControl::open() {
+         return false;
+     }
+     snd_mixer_selem_get_playback_volume_range(elem_, &min_, &max_);
++    use_db_ = resolve_db_range();
++    if (!use_db_) {
++        std::fprintf(stderr,
++                     "volume: control '%s' reports no usable decibel range; "
++                     "using the raw scale, which is not the curve the player "
++                     "spec asks for\n", control_.c_str());
++    }
+     return true;
+ }
+ 
++// Called from open(), which already holds the lock.
++bool VolumeControl::resolve_db_range() {
++    long min_mdb = 0, max_mdb = 0;
++    if (snd_mixer_selem_get_playback_dB_range(elem_, &min_mdb, &max_mdb) < 0) return false;
++
++    // Many DAC controls flag their bottom step as a hard mute, for which the
++    // reported minimum is the sentinel instead of a level. Probe upwards for
++    // the quietest step that has a real value.
++    if (min_mdb < DB_SENTINEL_FLOOR_MDB) {
++        const long limit = std::min(max_ - min_, MUTE_PROBE_STEPS);
++        bool found = false;
++        for (long step = 1; step <= limit && !found; ++step) {
++            long mdb = 0;
++            if (snd_mixer_selem_ask_playback_vol_dB(elem_, min_ + step, &mdb) == 0 &&
++                mdb > DB_SENTINEL_FLOOR_MDB) {
++                min_mdb = mdb;
++                found = true;
++            }
++        }
++        if (!found) return false;
++    }
++
++    db_ = DbRange{min_mdb, max_mdb};
++    return db_.usable();
++}
++
+ void VolumeControl::set_sendspin_volume(uint8_t v) {
+     std::lock_guard<std::mutex> lock(mtx_);
+     if (!elem_) return;
+-    long raw = sendspin_to_raw(v, min_, max_);
+-    snd_mixer_selem_set_playback_volume_all(elem_, raw);
++    // 0 means the bottom of the raw range, which on most DAC controls is a
++    // real mute step below the quietest decibel value the TLV describes.
++    if (use_db_ && v > 0 &&
++        snd_mixer_selem_set_playback_dB_all(elem_, sendspin_to_mdb(v, db_), 0) == 0) {
++        remember_applied(v);
++        return;
++    }
++    snd_mixer_selem_set_playback_volume_all(elem_, sendspin_to_raw(v, min_, max_));
++    remember_applied(v);
++}
++
++// Record the raw step the control settled on; the caller holds the lock.
++void VolumeControl::remember_applied(uint8_t v) {
++    long raw = 0;
++    if (snd_mixer_selem_get_playback_volume(elem_, SND_MIXER_SCHN_FRONT_LEFT, &raw) < 0) {
++        applied_volume_ = -1;
++        return;
++    }
++    applied_volume_ = v;
++    applied_raw_ = raw;
+ }
+ 
+ void VolumeControl::set_muted(bool muted) {
+@@ -58,5 +117,17 @@ int VolumeControl::current_sendspin_volume() {
+     snd_mixer_handle_events(handle_);
+     long raw = 0;
+     if (snd_mixer_selem_get_playback_volume(elem_, SND_MIXER_SCHN_FRONT_LEFT, &raw) < 0) return -1;
++    // The control quantises to its own steps, so the level we set rarely reads
++    // back as the number we were given. Report what we applied until the
++    // control actually moves, or every change comes back to the server as a
++    // correction it never made.
++    if (applied_volume_ >= 0 && raw == applied_raw_) return applied_volume_;
++    if (use_db_) {
++        long mdb = 0;
++        if (snd_mixer_selem_ask_playback_vol_dB(elem_, raw, &mdb) == 0 &&
++            mdb > DB_SENTINEL_FLOOR_MDB) {
++            return mdb_to_sendspin(mdb, db_);
++        }
++    }
+     return raw_to_sendspin(raw, min_, max_);
+ }
+diff --git a/src/volume_control.h b/src/volume_control.h
+index 9a3b727..af4a3ca 100644
+--- a/src/volume_control.h
++++ b/src/volume_control.h
+@@ -5,6 +5,8 @@
+ #include <mutex>
+ #include <string>
+ 
++#include "volume_scale.h"
++
+ class VolumeControl {
+  public:
+     VolumeControl(std::string mixer_device, std::string control_name);
+@@ -15,9 +17,20 @@ class VolumeControl {
+     int current_sendspin_volume();
+ 
+  private:
++    // Decide the control's usable decibel range; false leaves the raw scale.
++    bool resolve_db_range();
++    // Record the raw step a set landed on.
++    void remember_applied(uint8_t v);
++
+     std::string device_, control_;
+     snd_mixer_t* handle_ = nullptr;
+     snd_mixer_elem_t* elem_ = nullptr;
+     long min_ = 0, max_ = 0;
++    DbRange db_;
++    bool use_db_ = false;
++    // The wire volume last applied and the raw step it landed on, so that the
++    // control's own quantisation does not read back as an external change.
++    int applied_volume_ = -1;
++    long applied_raw_ = 0;
+     std::mutex mtx_;
+ };
+diff --git a/src/volume_scale.cpp b/src/volume_scale.cpp
+index 6e3c646..433fe64 100644
+--- a/src/volume_scale.cpp
++++ b/src/volume_scale.cpp
+@@ -1,4 +1,5 @@
+ #include "volume_scale.h"
++#include <cmath>
+ 
+ // The Sendspin wire protocol carries volume as 0-100 (Music Assistant's
+ // aiosendspin server rejects a client/state whose volume is outside 0-100).
+@@ -23,3 +24,34 @@ uint8_t raw_to_sendspin(long raw, long min, long max) {
+     if (v > SENDSPIN_VOL_MAX) v = SENDSPIN_VOL_MAX;
+     return static_cast<uint8_t>(v);
+ }
++
++// amplitude = (volume/100)^1.5, so dB = 20*1.5*log10(volume/100); in
++// hundredths of a decibel the factor is 3000.
++static constexpr double SPEC_DB_FACTOR_MDB = 3000.0;
++
++long sendspin_to_mdb(uint8_t v, const DbRange& range) {
++    if (!range.usable()) return range.min_mdb;
++    if (v == 0) return range.min_mdb;
++    if (v > SENDSPIN_VOL_MAX) v = static_cast<uint8_t>(SENDSPIN_VOL_MAX);
++
++    const double mdb = static_cast<double>(range.reference_mdb()) +
++                       SPEC_DB_FACTOR_MDB * std::log10(static_cast<double>(v) / SENDSPIN_VOL_MAX);
++    const long rounded = std::lround(mdb);
++    if (rounded < range.min_mdb) return range.min_mdb;
++    if (rounded > range.max_mdb) return range.max_mdb;
++    return rounded;
++}
++
++uint8_t mdb_to_sendspin(long mdb, const DbRange& range) {
++    if (!range.usable()) return 0;
++    if (mdb <= range.min_mdb) return 0;
++    if (mdb >= range.reference_mdb()) return static_cast<uint8_t>(SENDSPIN_VOL_MAX);
++
++    const double v = SENDSPIN_VOL_MAX *
++                     std::pow(10.0, static_cast<double>(mdb - range.reference_mdb()) /
++                                        SPEC_DB_FACTOR_MDB);
++    long rounded = std::lround(v);
++    if (rounded < 0) rounded = 0;
++    if (rounded > SENDSPIN_VOL_MAX) rounded = SENDSPIN_VOL_MAX;
++    return static_cast<uint8_t>(rounded);
++}
+diff --git a/src/volume_scale.h b/src/volume_scale.h
+index b963672..89628d7 100644
+--- a/src/volume_scale.h
++++ b/src/volume_scale.h
+@@ -1,4 +1,33 @@
+ #pragma once
+ #include <cstdint>
++
+ long sendspin_to_raw(uint8_t v, long min, long max);
+ uint8_t raw_to_sendspin(long raw, long min, long max);
++
++// A control's usable decibel range, in ALSA's hundredths of a decibel.
++struct DbRange {
++    long min_mdb = 0;
++    long max_mdb = 0;
++
++    bool usable() const { return max_mdb > min_mdb; }
++    // Full scale, which the curve is relative to. A control that can boost
++    // above unity must not do so, or every level is louder than its peers'.
++    long reference_mdb() const { return max_mdb < 0 ? max_mdb : 0; }
++};
++
++// Wire volume (0-100) <-> decibels, on the curve the player spec names.
++//
++// roles/player/v1.md: "Volume values (0-100) represent perceived loudness, not
++// linear amplitude ... Clients SHOULD convert volume to a linear amplitude
++// (the gain applied to samples, where 1.0 is full scale and 0 is silent) as
++// amplitude = (volume / 100)^1.5." In decibels that is 30*log10(volume/100)
++// below full scale, and the spec allows an equivalent dB-domain curve.
++//
++// Interpolating onto the control's raw range instead, as this daemon used to,
++// is the one thing the spec rules out: a hardware mixer's raw range is a ladder
++// of equal decibel steps, so on the HiFiBerry DAC+/Amp2's 207-step "Digital"
++// control, which spans -103.5 dB to 0 dB, a volume of 70 landed on -31 dB
++// instead of -4.65 dB. In a group with any conformant client that is a 26 dB
++// mismatch.
++long sendspin_to_mdb(uint8_t v, const DbRange& range);
++uint8_t mdb_to_sendspin(long mdb, const DbRange& range);
+diff --git a/tests/test_volume_scale.cpp b/tests/test_volume_scale.cpp
+index a7438fc..45ddf4e 100644
+--- a/tests/test_volume_scale.cpp
++++ b/tests/test_volume_scale.cpp
+@@ -1,5 +1,7 @@
+ #include "volume_scale.h"
+ #include <cassert>
++#include <cmath>
++#include <cstdint>
+ 
+ int main() {
+     // Sendspin wire volume is 0-100. full-scale endpoints
+@@ -19,5 +21,68 @@ int main() {
+     // clamp out-of-range raw
+     assert(raw_to_sendspin(150, 0, 100) == 100);
+     assert(raw_to_sendspin(-5, 0, 100) == 0);
++
++    // roles/player/v1.md: amplitude = (volume/100)^1.5, so 30*log10(volume/100)
++    // decibels below full scale. The HiFiBerry DAC+/Amp2 "Digital" control is
++    // 207 steps of 0.5 dB spanning -103.5 dB to 0 dB, wide enough for all of it.
++    const DbRange digital{-10350, 0};
++    assert(digital.usable());
++    assert(digital.reference_mdb() == 0);
++    assert(sendspin_to_mdb(0, digital) == -10350);
++    assert(sendspin_to_mdb(100, digital) == 0);
++
++    // The spec's own example: volume 50 is amplitude 0.5^1.5 = 0.354, -9.03 dB.
++    assert(sendspin_to_mdb(50, digital) == -903);
++    {
++        const double amplitude = std::pow(10.0, sendspin_to_mdb(50, digital) / 2000.0);
++        assert(amplitude > 0.350 && amplitude < 0.358);
++    }
++    // The conformance harness' non-conformant band for linear gain is 0.45-0.55.
++    assert(sendspin_to_mdb(70, digital) == -465);
++
++    // Strictly monotonic, so every step of the wire volume changes the level.
++    for (int v = 1; v <= 100; ++v) {
++        assert(sendspin_to_mdb(static_cast<uint8_t>(v), digital) >
++               sendspin_to_mdb(static_cast<uint8_t>(v - 1), digital));
++    }
++
++    // A level set from the server reads back as the same number.
++    for (int v = 0; v <= 100; ++v) {
++        const uint8_t wire = static_cast<uint8_t>(v);
++        assert(mdb_to_sendspin(sendspin_to_mdb(wire, digital), digital) == wire);
++    }
++
++    // Out-of-range inputs clamp, as on the raw scale.
++    assert(sendspin_to_mdb(171, digital) == 0);
++    assert(mdb_to_sendspin(-20000, digital) == 0);
++    assert(mdb_to_sendspin(500, digital) == 100);
++
++    // A narrow range cannot express the quietest levels and clamps to its floor
++    // rather than wrapping: a Softvol fallback control spans -51 dB to 0 dB, so
++    // everything below volume 2 sits on the floor.
++    const DbRange softvol{-5100, 0};
++    assert(sendspin_to_mdb(50, softvol) == -903);
++    assert(sendspin_to_mdb(1, softvol) == -5100);
++    assert(sendspin_to_mdb(2, softvol) > -5100);
++
++    // A control that can boost above unity stays at unity for volume 100, or it
++    // plays louder than every conformant peer in the same group.
++    const DbRange boosting{-10350, 400};
++    assert(boosting.reference_mdb() == 0);
++    assert(sendspin_to_mdb(100, boosting) == 0);
++    assert(sendspin_to_mdb(50, boosting) == -903);
++
++    // A control whose maximum is below unity references its own maximum.
++    const DbRange attenuating{-5000, -600};
++    assert(attenuating.reference_mdb() == -600);
++    assert(sendspin_to_mdb(100, attenuating) == -600);
++    assert(sendspin_to_mdb(50, attenuating) == -1503);
++
++    // A degenerate range must not divide by zero or curve anything.
++    const DbRange degenerate{0, 0};
++    assert(!degenerate.usable());
++    assert(sendspin_to_mdb(50, degenerate) == 0);
++    assert(mdb_to_sendspin(0, degenerate) == 0);
++
+     return 0;
+ }
